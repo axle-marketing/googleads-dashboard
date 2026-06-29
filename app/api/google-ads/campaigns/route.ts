@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     // Create campaign draft in Google Ads API
     // This is a simplified version - actual implementation would be more complex
     const response = await axios.post(
-      `https://googleads.googleapis.com/v17/customers/${body.customer_id}/campaignDrafts:create`,
+      `https://googleads.googleapis.com/v24/customers/${body.customer_id}/campaignDrafts:create`,
       {
         campaignDraft: {
           baseCampaignId: null, // For new campaigns
