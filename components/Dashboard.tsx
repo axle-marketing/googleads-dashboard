@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import SelectDropdown from './SelectDropdown';
 import ThemeToggle from './ThemeToggle';
 import { US_STATES } from '@/lib/us-states';
+import { supabase } from '@/lib/supabase';
 
 interface Customer {
   customer_id: string;
@@ -30,6 +32,7 @@ interface BuildResult {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [niches, setNiches] = useState<Niche[]>([]);
   const [strategies, setStrategies] = useState<Strategy[]>([]);
@@ -86,6 +89,11 @@ export default function Dashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStrategy]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  }
 
   async function fetchCustomers() {
     try {
@@ -198,7 +206,16 @@ export default function Dashboard() {
               Selecione um cliente, nicho e estratégia para criar um rascunho de campanha
             </p>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={handleLogout}
+              title="Sair"
+              className="h-10 px-3 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
         {/* Main Card */}
