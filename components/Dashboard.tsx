@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import SelectDropdown from './SelectDropdown';
+import ThemeToggle from './ThemeToggle';
 
 interface Customer {
   customer_id: string;
@@ -133,23 +134,26 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Dashboard de Campanhas
-          </h1>
-          <p className="text-gray-600">
-            Selecione um cliente, nicho e estratégia para criar um rascunho de campanha
-          </p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+              Dashboard de Campanhas
+            </h1>
+            <p className="text-gray-700 dark:text-gray-300">
+              Selecione um cliente, nicho e estratégia para criar um rascunho de campanha
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm dark:bg-red-950 dark:border-red-800 dark:text-red-300">
               {error}
             </div>
           )}
@@ -197,17 +201,17 @@ export default function Dashboard() {
 
             {/* Strategy Info */}
             {selectedStrategy && strategies.length > 0 && (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800">
                 {(() => {
                   const strategy = strategies.find(
                     (s) => s.id === selectedStrategy
                   );
                   return strategy ? (
                     <div>
-                      <h3 className="font-semibold text-blue-900 mb-2">
+                      <h3 className="font-semibold text-blue-900 mb-2 dark:text-blue-200">
                         {strategy.name}
                       </h3>
-                      <p className="text-sm text-blue-800">
+                      <p className="text-sm text-blue-800 dark:text-blue-300">
                         {strategy.description}
                       </p>
                     </div>
@@ -222,7 +226,7 @@ export default function Dashboard() {
               disabled={
                 !selectedCustomer || !selectedNiche || !selectedStrategy
               }
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed dark:disabled:bg-gray-700 dark:disabled:text-gray-400"
             >
               Criar Rascunho de Campanha
             </button>
@@ -231,21 +235,21 @@ export default function Dashboard() {
 
         {/* Info Section */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg p-4 shadow">
-            <h3 className="font-semibold text-gray-900 mb-2">📋 Cliente</h3>
-            <p className="text-sm text-gray-600">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">📋 Cliente</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Selecione a conta do Google Ads do cliente
             </p>
           </div>
-          <div className="bg-white rounded-lg p-4 shadow">
-            <h3 className="font-semibold text-gray-900 mb-2">🎯 Nicho</h3>
-            <p className="text-sm text-gray-600">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">🎯 Nicho</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Escolha o nicho/setor da campanha
             </p>
           </div>
-          <div className="bg-white rounded-lg p-4 shadow">
-            <h3 className="font-semibold text-gray-900 mb-2">⚡ Estratégia</h3>
-            <p className="text-sm text-gray-600">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">⚡ Estratégia</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Defina a estrutura e o tipo de campanha
             </p>
           </div>
