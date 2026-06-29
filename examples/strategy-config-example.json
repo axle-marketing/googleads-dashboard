@@ -1,0 +1,84 @@
+{
+  "campaigns": [
+    {
+      "name": "Campanha 1 - Busca",
+      "type": "SEARCH",
+      "budget_daily": 50,
+      "bidding_strategy": "MANUAL_CPC",
+      "ad_groups": [
+        {
+          "name": "Ad Group - [nicho] - Comercial",
+          "keywords": [
+            {
+              "text": "comprar [produto] [cidade]",
+              "match_type": "PHRASE"
+            },
+            {
+              "text": "[produto] barato [cidade]",
+              "match_type": "BROAD"
+            },
+            {
+              "text": "[produto] premium",
+              "match_type": "EXACT"
+            }
+          ],
+          "ads": [
+            {
+              "headlines": [
+                "[Marca] - Melhor [Produto]",
+                "Entrega Rápida em [Cidade]",
+                "Qualidade Garantida"
+              ],
+              "descriptions": [
+                "Compre [produto] com segurança. Frete grátis acima de R$100.",
+                "Atendimento 24/7. Satisfação garantida ou seu dinheiro de volta."
+              ],
+              "display_paths": [
+                "[produto]",
+                "melhor-preco"
+              ],
+              "structured_snippets": {
+                "tipos_produto": [
+                  "[Produto] Premium",
+                  "[Produto] Econômico",
+                  "[Produto] Profissional"
+                ],
+                "garantia": [
+                  "Garantia de 12 meses",
+                  "Sem custo adicional",
+                  "Cobertura total"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Campanha 2 - Display",
+      "type": "DISPLAY",
+      "budget_daily": 30,
+      "bidding_strategy": "MANUAL_CPM",
+      "ad_groups": [
+        {
+          "name": "Ad Group - Remarketing",
+          "keywords": [],
+          "ads": [
+            {
+              "headlines": [
+                "Volte e Complete sua Compra!",
+                "Desconto Especial Só para Você"
+              ],
+              "descriptions": [
+                "Você deixou itens no carrinho. Aproveite 15% de desconto!",
+                "Milhares de clientes já confiam em nós."
+              ],
+              "display_paths": [],
+              "structured_snippets": {}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
