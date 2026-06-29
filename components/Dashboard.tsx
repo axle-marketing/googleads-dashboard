@@ -48,7 +48,6 @@ export default function Dashboard() {
   const [website, setWebsite] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
-  const [includeRegion, setIncludeRegion] = useState(false);
   const [dailyBudget, setDailyBudget] = useState('50');
   const [adGroupKeys, setAdGroupKeys] = useState<string[]>([]);
   const [building, setBuilding] = useState(false);
@@ -169,7 +168,6 @@ export default function Dashboard() {
           website: website.trim(),
           state,
           city: city.trim(),
-          include_region: includeRegion,
           daily_budget: Number(dailyBudget) || 50,
           ad_group_keys: adGroupKeys,
         }),
@@ -316,16 +314,6 @@ export default function Dashboard() {
                     />
                   </Field>
                 </div>
-
-                <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
-                  <input
-                    type="checkbox"
-                    checked={includeRegion}
-                    onChange={(e) => setIncludeRegion(e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                  Anunciar também na região ao redor da cidade
-                </label>
 
                 <div>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">

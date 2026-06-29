@@ -16,6 +16,9 @@ export interface AdGroupTemplate {
   descriptions: string[];
   keywords: KeywordEntry[];
   negatives: KeywordEntry[]; // ad-group-level cross negatives
+  // Broad keywords using the {abbr} placeholder (state abbreviation), added
+  // only when no city is selected. E.g. "office cleaning {abbr}" -> "...MA".
+  abbrevKeywords: string[];
 }
 
 export const BACKUP_HEADLINE = 'Expert Local Cleaning Team';
@@ -88,6 +91,10 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       { text: 'construction', matchType: 'BROAD' },
       { text: 'school', matchType: 'BROAD' },
     ],
+    abbrevKeywords: [
+      'office cleaning {abbr}',
+      'commercial cleaning {abbr}',
+    ],
   },
   {
     key: 'medical',
@@ -153,6 +160,10 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       { text: 'medical supplies', matchType: 'PHRASE' },
       { text: 'dental equipment', matchType: 'PHRASE' },
     ],
+    abbrevKeywords: [
+      'medical cleaning {abbr}',
+      'medical office cleaning {abbr}',
+    ],
   },
   {
     key: 'post_construction',
@@ -217,6 +228,10 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       { text: 'residential', matchType: 'BROAD' },
       { text: 'home renovation', matchType: 'PHRASE' },
     ],
+    abbrevKeywords: [
+      'post construction cleaning {abbr}',
+      'construction cleanup {abbr}',
+    ],
   },
   {
     key: 'school',
@@ -279,6 +294,10 @@ export const AD_GROUPS: AdGroupTemplate[] = [
     negatives: [
       { text: 'school supplies', matchType: 'PHRASE' },
       { text: 'students', matchType: 'BROAD' },
+    ],
+    abbrevKeywords: [
+      'school cleaning {abbr}',
+      'school janitorial {abbr}',
     ],
   },
 ];

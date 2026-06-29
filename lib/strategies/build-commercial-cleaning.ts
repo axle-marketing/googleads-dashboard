@@ -1,4 +1,5 @@
 import { mutate, searchStream, suggestStateGeoTarget } from '../google-ads';
+import { getStateAbbr } from '../us-states';
 import {
   AD_GROUPS,
   STRUCTURED_SNIPPET,
@@ -15,7 +16,6 @@ export interface BuildParams {
   website: string; // final URL
   state: string; // US state name for geo-targeting
   city: string;
-  includeRegion: boolean;
   dailyBudget: number; // USD
   adGroupKeys: string[]; // which of the 4 ad groups to build
 }
@@ -40,20 +40,17 @@ export async function buildCommercialCleaning(
     website,
     state,
     city,
-    includeRegion,
     dailyBudget,
     adGroupKeys,
   } = params;
 
   const cid = customerId.replace(/-/g, '');
   // Location token used in ads and in {location} keyword placeholders:
-  //  - no city  -> the state
-  //  - city     -> the city
-  //  - city + region -> "City and region"
+  //  - city selected -> the city
+  //  - no city        -> the state
   const trimmedCity = city.trim();
-  const baseLocation = trimmedCity || state;
-  const locationString =
-    trimmedCity && includeRegion ? `${trimmedCity} and region` : baseLocation;
+  const locationString = trimmedCity || state;
+  const stateAbbr = getStateAbbr(state);
   const finalUrl = website.startsWith('http') ? website : `https://${website}`;
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const steps: string[] = [];
@@ -196,20 +193,36 @@ export async function buildCommercialCleaning(
     const adGroupRN = adGroup.resourceName;
 
     // Positive keywords ({location} placeholder resolved here)
-    await mutate(
-      cid,
-      'adGroupCriteria',
-      ag.keywords.map((kw) => ({
-        create: {
-          adGroup: adGroupRN,
-          status: 'ENABLED',
-          keyword: {
-            text: kw.text.replaceAll('{location}', locationString),
-            matchType: kw.matchType,
-          },
+    const keywordOps = ag.keywords.map((kw) => ({
+      create: {
+        adGroup: adGroupRN,
+        status: 'ENABLED',
+        keyword: {
+          text: kw.text.replaceAll('{location}', locationString),
+          matchType: kw.matchType,
         },
-      }))
-    );
+      },
+    }));
+
+    // State-abbreviation broad keywords (only when no city is selected)
+    let abbrCount = 0;
+    if (!trimmedCity && stateAbbr) {
+      for (const tmpl of ag.abbrevKeywords) {
+        keywordOps.push({
+          create: {
+            adGroup: adGroupRN,
+            status: 'ENABLED',
+            keyword: {
+              text: tmpl.replaceAll('{abbr}', stateAbbr),
+              matchType: 'BROAD',
+            },
+          },
+        });
+        abbrCount++;
+      }
+    }
+
+    await mutate(cid, 'adGroupCriteria', keywordOps);
 
     // Ad-group-level cross negatives
     if (ag.negatives.length) {
@@ -228,7 +241,7 @@ export async function buildCommercialCleaning(
 
     // Responsive search ad
     const headlines = [
-      buildPrimaryHeadline(companyName, baseLocation, locationString),
+      buildPrimaryHeadline(companyName, locationString, locationString),
       ...ag.headlines,
     ]
       .map((h) => h.slice(0, MAX_HEADLINE))
@@ -238,7 +251,7 @@ export async function buildCommercialCleaning(
       text: renderText(
         d,
         companyName,
-        baseLocation,
+        locationString,
         locationString,
         MAX_DESCRIPTION
       ),
@@ -258,7 +271,7 @@ export async function buildCommercialCleaning(
     ]);
 
     steps.push(
-      `${ag.name}: ${ag.keywords.length} keywords, ${ag.negatives.length} negativas, 1 RSA`
+      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA`
     );
   }
 

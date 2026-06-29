@@ -15,7 +15,6 @@ export async function POST(request: Request) {
       website,
       state,
       city,
-      include_region,
       daily_budget,
       ad_group_keys,
     } = body;
@@ -46,7 +45,6 @@ export async function POST(request: Request) {
       website,
       state: state || '',
       city,
-      includeRegion: !!include_region,
       dailyBudget: Number(daily_budget) || 50,
       adGroupKeys:
         Array.isArray(ad_group_keys) && ad_group_keys.length
