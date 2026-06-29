@@ -11,7 +11,7 @@ services:
       - GOOGLE_ADS_CLIENT_ID=${GOOGLE_ADS_CLIENT_ID}
       - GOOGLE_ADS_CLIENT_SECRET=${GOOGLE_ADS_CLIENT_SECRET}
       - GOOGLE_ADS_REFRESH_TOKEN=${GOOGLE_ADS_REFRESH_TOKEN}
-      - NEXT_PUBLIC_APP_URL=https://dash.google.axlemarketinggroup.com
+      - NEXT_PUBLIC_APP_URL=https://dash.google.axlemarketingroup.online
     networks:
       - network-axle
     deploy:
@@ -20,7 +20,7 @@ services:
         condition: on-failure
       labels:
         - traefik.enable=true
-        - traefik.http.routers.googleads-dashboard.rule=Host(`dash.google.axlemarketinggroup.com`)
+        - traefik.http.routers.googleads-dashboard.rule=Host(`dash.google.axlemarketingroup.online`)
         - traefik.http.routers.googleads-dashboard.entrypoints=websecure
         - traefik.http.routers.googleads-dashboard.priority=10
         - traefik.http.routers.googleads-dashboard.tls.certresolver=letsencryptresolver
