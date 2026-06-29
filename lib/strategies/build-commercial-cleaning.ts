@@ -75,6 +75,8 @@ export async function buildCommercialCleaning(
         advertisingChannelType: 'SEARCH',
         campaignBudget: budget.resourceName,
         manualCpc: { enhancedCpcEnabled: false },
+        containsEuPoliticalAdvertising:
+          'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
         networkSettings: {
           targetGoogleSearch: true,
           targetSearchNetwork: true,
