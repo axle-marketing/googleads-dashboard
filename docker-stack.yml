@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  googleads-dashboard:
+    image: ghcr.io/axle-marketing/googleads-dashboard:latest
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GOOGLE_ADS_DEVELOPER_TOKEN=${GOOGLE_ADS_DEVELOPER_TOKEN}
+      - GOOGLE_ADS_CLIENT_ID=${GOOGLE_ADS_CLIENT_ID}
+      - GOOGLE_ADS_CLIENT_SECRET=${GOOGLE_ADS_CLIENT_SECRET}
+      - GOOGLE_ADS_REFRESH_TOKEN=${GOOGLE_ADS_REFRESH_TOKEN}
+      - NEXT_PUBLIC_APP_URL=https://dash.google.axlemarketinggroup.com
+    networks:
+      - network-axle
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.googleads-dashboard.rule=Host(`dash.google.axlemarketinggroup.com`)
+        - traefik.http.routers.googleads-dashboard.entrypoints=websecure
+        - traefik.http.routers.googleads-dashboard.priority=10
+        - traefik.http.routers.googleads-dashboard.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.googleads-dashboard.service=googleads-dashboard
+        - traefik.http.services.googleads-dashboard.loadbalancer.server.port=3000
+        - traefik.http.services.googleads-dashboard.loadbalancer.passHostHeader=1
+
+networks:
+  network-axle:
+    external: true
