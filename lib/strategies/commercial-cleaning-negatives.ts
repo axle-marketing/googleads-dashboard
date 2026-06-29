@@ -1,0 +1,91 @@
+import type { NegativeList } from './commercial-cleaning-data';
+
+// Campaign-level negative keyword lists, one per uploaded spreadsheet.
+// All keywords are BROAD match. 'school' and 'student' from the Free list are
+// intentionally omitted from the data here because they would block the entire
+// School Cleaning ad group; the builder also guards against this at runtime.
+
+export const NEGATIVE_LISTS: NegativeList[] = [
+  {
+    name: 'Negative Words - Free',
+    keywords: [
+      'tips', 'how to clean', 'sample', 'how to', 'meaning', 'definition',
+      'course', 'certification', 'recipe', 'products', 'diy', 'chemicals',
+      'how to price', 'how to quote', 'best way to clean', 'youtube',
+      'training', 'classes', 'supplies', 'homemade', 'class', 'how do i',
+      'pdf', 'certificate', 'what is', 'solution', 'equipment', 'free',
+      'guide', 'tutorial', 'courses', 'examples', 'template', 'do it yourself',
+      'checklist', 'how to start', 'how to bid', 'book', 'ebook', 'video',
+      'podcast', 'download', 'instructions', 'manual', 'materials', 'tools',
+      'calculator', 'generator', 'worksheet', 'spreadsheet', 'seminar',
+      'webinar', 'workshop', 'jobs', 'resume',
+    ],
+  },
+  {
+    name: 'Negative Words - Job',
+    keywords: [
+      'cleaning jobs', 'evening cleaning jobs', 'cleaning company jobs',
+      'application', 'cv', 'part time', 'resume', 'cleaner jobs',
+      'commercial cleaning jobs', 'glassdoor', 'job', 'jobs', 'employment',
+      'indeed', 'training jobs', 'janitorial jobs', 'careers', 'salary',
+      'wage', 'apply', 'linkedin jobs', 'weekend cleaning jobs',
+      'night cleaning jobs', 'career', 'hourly pay', 'office cleaning jobs',
+      'vacancy', 'vacancies', 'hiring', 'full time', 'janitor jobs',
+      'craigslist', 'monster', 'ziprecruiter', 'work', 'working',
+      'opportunities', 'openings', 'positions', 'student', 'internship',
+      'intern', 'apprenticeship', 'volunteer', 'recruiting', 'recruitment',
+      'staffing', 'agency', 'pay rate', 'benefits', 'description', 'duties',
+      'responsibilities', 'requirements', 'temp', 'temporary',
+    ],
+  },
+  {
+    name: 'Negative Words - Out of Scope',
+    keywords: [
+      'roof cleaning', 'marble polishing', 'fire damage restoration',
+      'floor polishing', 'landscaping', 'curtain cleaning', 'junk removal',
+      'window washing', 'grout cleaning', 'dryer vent cleaning',
+      'air duct cleaning', 'rug cleaning', 'hvac', 'pest control', 'plumbing',
+      'carpet cleaning', 'sewage cleanup', 'restoration company',
+      'exterior window cleaning', 'hoarding cleanup', 'pool cleaning',
+      'power washing', 'mattress cleaning', 'house washing',
+      'crime scene cleanup', 'trash removal', 'handyman', 'chimney cleaning',
+      'pool service', 'sofa cleaning', 'mold removal', 'duct cleaning',
+      'stone restoration', 'hardwood floor refinishing', 'floor refinishing',
+      'upholstery cleaning', 'painting', 'mold remediation',
+      'biohazard cleaning', 'tile and grout cleaning', 'disinfection only',
+      'pressure washing', 'laundry service', 'blind cleaning',
+      'gutter cleaning', 'water damage restoration', 'vacuum cleaner',
+      'mop and bucket', 'cleaning chemicals', 'bleach', 'floor buffer',
+      'janitorial supplies', 'paper towels', 'trash bags', 'car wash',
+      'dry cleaning', 'pet grooming', 'snow removal', 'street sweeping',
+      'boat cleaning', 'auto detailing', 'window squeegee', 'carpet extractor',
+      'glass cleaner', 'degreaser', 'floor wax', 'microfiber cloths',
+      'hand soap', 'toilet paper', 'disinfectant spray', 'laundry mat',
+    ],
+  },
+  {
+    name: 'Negative Words - Residential',
+    keywords: [
+      'residential cleaning', 'residential cleaner', 'apartment cleaner',
+      'bedroom cleaning', 'living room cleaning', 'monthly house cleaning',
+      'apartment cleaning', 'house cleaning', 'maid', 'maid service',
+      'move in cleaning', 'domestic cleaning', 'deep house cleaning',
+      'bathroom cleaning service', 'room cleaning service',
+      'kitchen cleaning service', 'weekly house cleaning', 'cleaning lady',
+      'same day house cleaning', 'spring cleaning house',
+      'biweekly house cleaning', 'home cleaning', 'domestic cleaner',
+      'move out cleaning', 'cleaning ladies', 'clean my house',
+      'maid services', 'housekeeper', 'home maid service', 'housekeeping',
+      'residential cleaning services', 'house cleaning services',
+      'home cleaning services', 'apartment cleaning services',
+      'move in move out cleaning', 'housekeeping services',
+      'residential maid service', 'residential cleaners near me',
+      'house cleaners near me', 'home cleaners near me',
+      'apartment cleaners near me', 'maid service near me',
+      'housekeeping near me', 'residential cleaning company',
+      'house cleaning company', 'home cleaning company',
+      'residential cleaning cost', 'house cleaning cost', 'home cleaning cost',
+      'maid cost', 'housekeeper cost',
+    ],
+  },
+];

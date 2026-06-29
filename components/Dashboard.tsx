@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import SelectDropdown from './SelectDropdown';
 import ThemeToggle from './ThemeToggle';
 
@@ -22,6 +22,12 @@ interface Strategy {
   config: any;
 }
 
+interface BuildResult {
+  campaignName: string;
+  steps: string[];
+  warnings: string[];
+}
+
 export default function Dashboard() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [niches, setNiches] = useState<Niche[]>([]);
@@ -36,24 +42,49 @@ export default function Dashboard() {
   const [loadingStrategies, setLoadingStrategies] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch customers on mount
+  // Builder form state
+  const [companyName, setCompanyName] = useState('');
+  const [website, setWebsite] = useState('');
+  const [city, setCity] = useState('');
+  const [includeRegion, setIncludeRegion] = useState(false);
+  const [dailyBudget, setDailyBudget] = useState('50');
+  const [adGroupKeys, setAdGroupKeys] = useState<string[]>([]);
+  const [building, setBuilding] = useState(false);
+  const [result, setResult] = useState<BuildResult | null>(null);
+
   useEffect(() => {
     fetchCustomers();
   }, []);
 
-  // Fetch niches when customer is selected
   useEffect(() => {
-    if (selectedCustomer) {
-      fetchNiches();
-    }
+    if (selectedCustomer) fetchNiches();
   }, [selectedCustomer]);
 
-  // Fetch strategies when niche is selected
   useEffect(() => {
-    if (selectedNiche) {
-      fetchStrategies();
-    }
+    if (selectedNiche) fetchStrategies();
   }, [selectedNiche]);
+
+  const selectedStrategyObj = useMemo(
+    () => strategies.find((s) => s.id === selectedStrategy),
+    [strategies, selectedStrategy]
+  );
+  const builder: string | undefined = selectedStrategyObj?.config?.builder;
+  const isBuilder = builder === 'commercial_cleaning';
+  const availableAdGroups: { key: string; name: string }[] =
+    selectedStrategyObj?.config?.ad_groups || [];
+
+  // When a builder strategy is selected, prefill company name and ad groups
+  useEffect(() => {
+    if (isBuilder) {
+      const customer = customers.find(
+        (c) => c.customer_id === selectedCustomer
+      );
+      setCompanyName((prev) => prev || customer?.name || '');
+      setAdGroupKeys(availableAdGroups.map((g) => g.key));
+      setResult(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStrategy]);
 
   async function fetchCustomers() {
     try {
@@ -61,8 +92,7 @@ export default function Dashboard() {
       setError(null);
       const res = await fetch('/api/google-ads/customers');
       if (!res.ok) throw new Error('Falha ao buscar clientes');
-      const data = await res.json();
-      setCustomers(data);
+      setCustomers(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
@@ -76,8 +106,7 @@ export default function Dashboard() {
       setError(null);
       const res = await fetch('/api/niches');
       if (!res.ok) throw new Error('Falha ao buscar nichos');
-      const data = await res.json();
-      setNiches(data);
+      setNiches(await res.json());
       setSelectedNiche('');
       setStrategies([]);
     } catch (err) {
@@ -93,8 +122,7 @@ export default function Dashboard() {
       setError(null);
       const res = await fetch(`/api/strategies?niche_id=${selectedNiche}`);
       if (!res.ok) throw new Error('Falha ao buscar estratégias');
-      const data = await res.json();
-      setStrategies(data);
+      setStrategies(await res.json());
       setSelectedStrategy('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -103,33 +131,52 @@ export default function Dashboard() {
     }
   }
 
-  async function handleCreateCampaign() {
-    if (!selectedCustomer || !selectedNiche || !selectedStrategy) {
-      setError('Por favor, selecione cliente, nicho e estratégia');
+  function toggleAdGroup(key: string) {
+    setAdGroupKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }
+
+  async function handleBuild() {
+    if (!selectedCustomer || !selectedStrategyObj) return;
+    if (!companyName.trim() || !website.trim() || !city.trim()) {
+      setError('Preencha nome da empresa, website e cidade.');
+      return;
+    }
+    if (adGroupKeys.length === 0) {
+      setError('Selecione pelo menos um grupo de anúncios.');
       return;
     }
 
     try {
+      setBuilding(true);
       setError(null);
-      const strategy = strategies.find((s) => s.id === selectedStrategy);
-      if (!strategy) throw new Error('Estratégia não encontrada');
+      setResult(null);
 
-      const res = await fetch('/api/google-ads/campaigns', {
+      const res = await fetch('/api/google-ads/build-campaign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          builder,
           customer_id: selectedCustomer,
-          campaign_name: `Draft - ${strategy.name}`,
-          config: strategy.config,
+          company_name: companyName.trim(),
+          website: website.trim(),
+          city: city.trim(),
+          include_region: includeRegion,
+          daily_budget: Number(dailyBudget) || 50,
+          ad_group_keys: adGroupKeys,
         }),
       });
 
-      if (!res.ok) throw new Error('Falha ao criar rascunho de campanha');
       const data = await res.json();
-      alert('Rascunho de campanha criado com sucesso!');
-      console.log('Campaign draft created:', data);
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao criar a estrutura');
+      }
+      setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar campanha');
+    } finally {
+      setBuilding(false);
     }
   }
 
@@ -151,16 +198,13 @@ export default function Dashboard() {
 
         {/* Main Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
-          {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm dark:bg-red-950 dark:border-red-800 dark:text-red-300">
               {error}
             </div>
           )}
 
-          {/* Form */}
           <div className="space-y-6">
-            {/* Customer Dropdown */}
             <SelectDropdown
               label="Cliente"
               value={selectedCustomer}
@@ -168,6 +212,8 @@ export default function Dashboard() {
                 setSelectedCustomer(value);
                 setSelectedNiche('');
                 setSelectedStrategy('');
+                setCompanyName('');
+                setResult(null);
               }}
               options={customers.map((c) => ({
                 id: c.customer_id,
@@ -177,7 +223,6 @@ export default function Dashboard() {
               placeholder="Escolha um cliente"
             />
 
-            {/* Niche Dropdown */}
             <SelectDropdown
               label="Nicho"
               value={selectedNiche}
@@ -188,7 +233,6 @@ export default function Dashboard() {
               disabled={!selectedCustomer}
             />
 
-            {/* Strategy Dropdown */}
             <SelectDropdown
               label="Estratégia"
               value={selectedStrategy}
@@ -199,62 +243,165 @@ export default function Dashboard() {
               disabled={!selectedNiche}
             />
 
-            {/* Strategy Info */}
-            {selectedStrategy && strategies.length > 0 && (
+            {selectedStrategyObj && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800">
-                {(() => {
-                  const strategy = strategies.find(
-                    (s) => s.id === selectedStrategy
-                  );
-                  return strategy ? (
-                    <div>
-                      <h3 className="font-semibold text-blue-900 mb-2 dark:text-blue-200">
-                        {strategy.name}
-                      </h3>
-                      <p className="text-sm text-blue-800 dark:text-blue-300">
-                        {strategy.description}
-                      </p>
-                    </div>
-                  ) : null;
-                })()}
+                <h3 className="font-semibold text-blue-900 mb-2 dark:text-blue-200">
+                  {selectedStrategyObj.name}
+                </h3>
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  {selectedStrategyObj.description}
+                </p>
               </div>
             )}
 
-            {/* Submit Button */}
-            <button
-              onClick={handleCreateCampaign}
-              disabled={
-                !selectedCustomer || !selectedNiche || !selectedStrategy
-              }
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed dark:disabled:bg-gray-700 dark:disabled:text-gray-400"
-            >
-              Criar Rascunho de Campanha
-            </button>
-          </div>
-        </div>
+            {/* Builder form (only for code-driven strategies) */}
+            {isBuilder && !result && (
+              <div className="space-y-5 border-t border-gray-200 dark:border-gray-700 pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Nome da empresa">
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="First Choice Janitorial"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Website (URL final)">
+                    <input
+                      type="text"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      placeholder="https://exemplo.com"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Cidade">
+                    <input
+                      type="text"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      placeholder="Boston"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Orçamento diário (US$)">
+                    <input
+                      type="number"
+                      min={1}
+                      value={dailyBudget}
+                      onChange={(e) => setDailyBudget(e.target.value)}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
 
-        {/* Info Section */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">📋 Cliente</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Selecione a conta do Google Ads do cliente
-            </p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">🎯 Nicho</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Escolha o nicho/setor da campanha
-            </p>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">⚡ Estratégia</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Defina a estrutura e o tipo de campanha
-            </p>
+                <label className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={includeRegion}
+                    onChange={(e) => setIncludeRegion(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  Anunciar também na região ao redor da cidade
+                </label>
+
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                    Grupos de anúncios a criar
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {availableAdGroups.map((g) => (
+                      <label
+                        key={g.key}
+                        className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200 p-2 rounded-lg border border-gray-200 dark:border-gray-700"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={adGroupKeys.includes(g.key)}
+                          onChange={() => toggleAdGroup(g.key)}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        {g.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Result panel */}
+            {result && (
+              <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg dark:bg-green-950 dark:border-green-800">
+                  <h3 className="font-semibold text-green-900 dark:text-green-200 mb-1">
+                    ✅ Campanha criada (pausada)
+                  </h3>
+                  <p className="text-sm text-green-800 dark:text-green-300">
+                    {result.campaignName}
+                  </p>
+                </div>
+                <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  {result.steps.map((s, i) => (
+                    <li key={i}>• {s}</li>
+                  ))}
+                </ul>
+                {result.warnings.length > 0 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg dark:bg-amber-950 dark:border-amber-800">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">
+                      Avisos
+                    </p>
+                    <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-1">
+                      {result.warnings.map((w, i) => (
+                        <li key={i}>• {w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <button
+                  onClick={() => setResult(null)}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Criar outra campanha
+                </button>
+              </div>
+            )}
+
+            {/* Submit button */}
+            {!result && (
+              <button
+                onClick={handleBuild}
+                disabled={!isBuilder || building}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed dark:disabled:bg-gray-700 dark:disabled:text-gray-400"
+              >
+                {building
+                  ? 'Criando estrutura no Google Ads...'
+                  : 'Criar Estrutura no Google Ads'}
+              </button>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+const inputClass =
+  'w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
