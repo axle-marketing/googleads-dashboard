@@ -24,6 +24,9 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/axle-marketing/googleads-dashboard:latest
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1
