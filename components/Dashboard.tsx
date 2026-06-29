@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import SelectDropdown from './SelectDropdown';
 import ThemeToggle from './ThemeToggle';
+import { US_STATES } from '@/lib/us-states';
 
 interface Customer {
   customer_id: string;
@@ -45,6 +46,7 @@ export default function Dashboard() {
   // Builder form state
   const [companyName, setCompanyName] = useState('');
   const [website, setWebsite] = useState('');
+  const [state, setState] = useState('');
   const [city, setCity] = useState('');
   const [includeRegion, setIncludeRegion] = useState(false);
   const [dailyBudget, setDailyBudget] = useState('50');
@@ -143,6 +145,10 @@ export default function Dashboard() {
       setError('Preencha nome da empresa, website e cidade.');
       return;
     }
+    if (!state) {
+      setError('Selecione o estado.');
+      return;
+    }
     if (adGroupKeys.length === 0) {
       setError('Selecione pelo menos um grupo de anúncios.');
       return;
@@ -161,6 +167,7 @@ export default function Dashboard() {
           customer_id: selectedCustomer,
           company_name: companyName.trim(),
           website: website.trim(),
+          state,
           city: city.trim(),
           include_region: includeRegion,
           daily_budget: Number(dailyBudget) || 50,
@@ -275,6 +282,20 @@ export default function Dashboard() {
                       placeholder="https://exemplo.com"
                       className={inputClass}
                     />
+                  </Field>
+                  <Field label="Estado">
+                    <select
+                      value={state}
+                      onChange={(e) => setState(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Escolha um estado</option>
+                      {US_STATES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                   <Field label="Cidade">
                     <input

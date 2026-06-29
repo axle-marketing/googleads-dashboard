@@ -1,4 +1,4 @@
-import { mutate, searchStream } from '../google-ads';
+import { mutate, searchStream, suggestStateGeoTarget } from '../google-ads';
 import {
   AD_GROUPS,
   STRUCTURED_SNIPPET,
@@ -13,6 +13,7 @@ export interface BuildParams {
   customerId: string; // client account, digits only
   companyName: string;
   website: string; // final URL
+  state: string; // US state name for geo-targeting
   city: string;
   includeRegion: boolean;
   dailyBudget: number; // USD
@@ -37,6 +38,7 @@ export async function buildCommercialCleaning(
     customerId,
     companyName,
     website,
+    state,
     city,
     includeRegion,
     dailyBudget,
@@ -88,6 +90,28 @@ export async function buildCommercialCleaning(
   ]);
   const campaignResourceName = campaign.resourceName;
   steps.push(`Campanha criada (PAUSADA): "${campaignName}"`);
+
+  // 2b) Geo-targeting: target the selected US state -------------------------
+  if (state) {
+    try {
+      const geoTarget = await suggestStateGeoTarget(state);
+      if (geoTarget) {
+        await mutate(cid, 'campaignCriteria', [
+          {
+            create: {
+              campaign: campaignResourceName,
+              location: { geoTargetConstant: geoTarget },
+            },
+          },
+        ]);
+        steps.push(`Segmentação geográfica: ${state}`);
+      } else {
+        warnings.push(`Não encontrei o estado "${state}" para segmentar.`);
+      }
+    } catch (e: any) {
+      warnings.push(`Segmentação de "${state}" falhou (seguindo sem ela).`);
+    }
+  }
 
   // 3) Structured snippet asset (campaign level) ----------------------------
   try {

@@ -79,6 +79,36 @@ export async function searchStream(
   return batches.flatMap((batch: any) => batch.results || []);
 }
 
+/**
+ * Resolves a US state name to its geo target constant resource name
+ * (e.g. "Massachusetts" -> "geoTargetConstants/21154") via the suggest endpoint.
+ * Returns null if no State-level match is found.
+ */
+export async function suggestStateGeoTarget(
+  stateName: string
+): Promise<string | null> {
+  const accessToken = await getAccessToken();
+  const response = await axios.post(
+    `${BASE_URL}/geoTargetConstants:suggest`,
+    {
+      locale: 'en',
+      countryCode: 'US',
+      locationNames: { names: [stateName] },
+    },
+    { headers: headers(accessToken) }
+  );
+
+  const suggestions = response.data.geoTargetConstantSuggestions || [];
+  // Prefer an exact State-level match, then fall back to the first suggestion.
+  const stateMatch = suggestions.find(
+    (s: any) =>
+      s.geoTargetConstant?.targetType === 'State' &&
+      s.geoTargetConstant?.name?.toLowerCase() === stateName.toLowerCase()
+  );
+  const chosen = stateMatch || suggestions[0];
+  return chosen?.geoTargetConstant?.resourceName || null;
+}
+
 /** Extracts a readable error message from a Google Ads API error response. */
 export function extractApiError(error: any): {
   message: string;
