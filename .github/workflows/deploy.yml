@@ -32,5 +32,27 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
+
+            # Update env file on server with latest values
+            cat > /opt/stacks/googleads-dashboard/.env << 'ENVEOF'
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            GOOGLE_ADS_DEVELOPER_TOKEN=${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+            GOOGLE_ADS_CLIENT_ID=${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+            GOOGLE_ADS_CLIENT_SECRET=${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+            GOOGLE_ADS_REFRESH_TOKEN=${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+            ENVEOF
+
+            # Pull latest image
             docker pull ghcr.io/axle-marketing/googleads-dashboard:latest
-            docker stack deploy -c /opt/stacks/googleads-dashboard/docker-stack.yml googleads-dashboard --with-registry-auth
+
+            # Deploy stack with env vars
+            set -a
+            source /opt/stacks/googleads-dashboard/.env
+            set +a
+            docker stack deploy \
+              -c /opt/stacks/googleads-dashboard/docker-stack.yml \
+              googleads-dashboard \
+              --with-registry-auth
