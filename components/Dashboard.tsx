@@ -141,8 +141,8 @@ export default function Dashboard() {
 
   async function handleBuild() {
     if (!selectedCustomer || !selectedStrategyObj) return;
-    if (!companyName.trim() || !website.trim() || !city.trim()) {
-      setError('Preencha nome da empresa, website e cidade.');
+    if (!companyName.trim() || !website.trim()) {
+      setError('Preencha nome da empresa e website.');
       return;
     }
     if (!state) {
@@ -297,12 +297,12 @@ export default function Dashboard() {
                       ))}
                     </select>
                   </Field>
-                  <Field label="Cidade">
+                  <Field label="Cidade (opcional)">
                     <input
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="Boston"
+                      placeholder="Boston (vazio = usa o estado)"
                       className={inputClass}
                     />
                   </Field>

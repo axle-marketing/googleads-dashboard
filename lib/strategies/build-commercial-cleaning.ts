@@ -46,7 +46,14 @@ export async function buildCommercialCleaning(
   } = params;
 
   const cid = customerId.replace(/-/g, '');
-  const locationString = includeRegion ? `${city} and region` : city;
+  // Location token used in ads and in {location} keyword placeholders:
+  //  - no city  -> the state
+  //  - city     -> the city
+  //  - city + region -> "City and region"
+  const trimmedCity = city.trim();
+  const baseLocation = trimmedCity || state;
+  const locationString =
+    trimmedCity && includeRegion ? `${trimmedCity} and region` : baseLocation;
   const finalUrl = website.startsWith('http') ? website : `https://${website}`;
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const steps: string[] = [];
@@ -188,7 +195,7 @@ export async function buildCommercialCleaning(
     ]);
     const adGroupRN = adGroup.resourceName;
 
-    // Positive keywords
+    // Positive keywords ({location} placeholder resolved here)
     await mutate(
       cid,
       'adGroupCriteria',
@@ -196,7 +203,10 @@ export async function buildCommercialCleaning(
         create: {
           adGroup: adGroupRN,
           status: 'ENABLED',
-          keyword: { text: kw.text, matchType: kw.matchType },
+          keyword: {
+            text: kw.text.replaceAll('{location}', locationString),
+            matchType: kw.matchType,
+          },
         },
       }))
     );
@@ -218,14 +228,20 @@ export async function buildCommercialCleaning(
 
     // Responsive search ad
     const headlines = [
-      buildPrimaryHeadline(companyName, city, locationString),
+      buildPrimaryHeadline(companyName, baseLocation, locationString),
       ...ag.headlines,
     ]
       .map((h) => h.slice(0, MAX_HEADLINE))
       .map((text) => ({ text }));
 
     const descriptions = ag.descriptions.map((d) => ({
-      text: renderText(d, companyName, city, locationString, MAX_DESCRIPTION),
+      text: renderText(
+        d,
+        companyName,
+        baseLocation,
+        locationString,
+        MAX_DESCRIPTION
+      ),
     }));
 
     await mutate(cid, 'adGroupAds', [
