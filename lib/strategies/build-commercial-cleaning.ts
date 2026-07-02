@@ -186,7 +186,7 @@ export async function buildCommercialCleaning(
           campaign: campaignResourceName,
           status: 'ENABLED',
           type: 'SEARCH_STANDARD',
-          cpcBidMicros: '2000000', // $2.00 default bid
+          // No cpcBidMicros: we don't set a max CPC on ad groups or keywords.
         },
       },
     ]);
