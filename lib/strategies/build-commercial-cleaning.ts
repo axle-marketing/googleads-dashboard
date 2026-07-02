@@ -72,7 +72,7 @@ export async function buildCommercialCleaning(
   steps.push(`Orçamento criado (US$ ${dailyBudget}/dia)`);
 
   // 2) Campaign (PAUSED) ----------------------------------------------------
-  const campaignName = `Commercial Cleaning - ${city} - ${stamp}`;
+  const campaignName = `Commercial Cleaning - ${locationString} - ${stamp}`;
   const [campaign] = await mutate(cid, 'campaigns', [
     {
       create: {
@@ -80,7 +80,10 @@ export async function buildCommercialCleaning(
         status: 'PAUSED',
         advertisingChannelType: 'SEARCH',
         campaignBudget: budget.resourceName,
-        manualCpc: { enhancedCpcEnabled: false },
+        // Maximize Conversions with no target CPA (empty strategy object)
+        maximizeConversions: {},
+        finalUrlSuffix:
+          'utm_source=google&utm_medium=cpc&utm_campaign={campaignid}&utm_content={adgroupid}&utm_term={keyword}',
         containsEuPoliticalAdvertising:
           'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
         networkSettings: {
@@ -115,6 +118,43 @@ export async function buildCommercialCleaning(
     } catch (e: any) {
       warnings.push(`Segmentação de "${state}" falhou (seguindo sem ela).`);
     }
+  }
+
+  // 2c) Campaign-specific conversion goals ----------------------------------
+  // Make the campaign use only Submit Lead Form + Phone Call Leads as biddable
+  // goals (instead of the account-default goals).
+  try {
+    const campaignId = idFromResourceName(campaignResourceName);
+    const desired = new Set(['SUBMIT_LEAD_FORM', 'PHONE_CALL_LEAD']);
+
+    const goals = await searchStream(
+      cid,
+      `SELECT customer_conversion_goal.category, customer_conversion_goal.origin
+       FROM customer_conversion_goal`
+    );
+
+    const ops = goals.map((g: any) => {
+      const category = g.customerConversionGoal.category;
+      const origin = g.customerConversionGoal.origin;
+      return {
+        update: {
+          resourceName: `customers/${cid}/campaignConversionGoals/${campaignId}~${category}~${origin}`,
+          biddable: desired.has(category),
+        },
+        updateMask: 'biddable',
+      };
+    });
+
+    if (ops.length) {
+      await mutate(cid, 'campaignConversionGoals', ops);
+      steps.push(
+        'Metas de conversão da campanha: Submit lead forms + Phone call leads'
+      );
+    }
+  } catch (e: any) {
+    warnings.push(
+      'Não foi possível definir as metas de conversão específicas (seguindo com as metas padrão da conta).'
+    );
   }
 
   // 3) Structured snippet asset (campaign level) ----------------------------
