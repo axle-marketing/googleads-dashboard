@@ -198,33 +198,8 @@ export async function buildCommercialCleaning(
     warnings.push('Structured snippet não pôde ser criado (seguindo sem ele).');
   }
 
-  // 3b) Campaign-level sitelinks (5 fixed) ----------------------------------
-  try {
-    const sitelinkAssets = await mutate(
-      cid,
-      'assets',
-      CAMPAIGN_SITELINKS.map((sl) => ({
-        create: {
-          finalUrls: [serviceUrl(sl.slug)],
-          sitelinkAsset: { linkText: sl.text },
-        },
-      }))
-    );
-    await mutate(
-      cid,
-      'campaignAssets',
-      sitelinkAssets.map((a) => ({
-        create: {
-          campaign: campaignResourceName,
-          asset: a.resourceName,
-          fieldType: 'SITELINK',
-        },
-      }))
-    );
-    steps.push(`Sitelinks de campanha: ${CAMPAIGN_SITELINKS.length}`);
-  } catch (e: any) {
-    warnings.push(`Sitelinks de campanha: ${extractApiError(e).message}`);
-  }
+  // Sitelinks are added per ad group (6 each: 5 general + 1 service-specific),
+  // not at campaign level — see the ad group loop below.
 
   // 4) Campaign-level negative keyword lists --------------------------------
   for (const list of NEGATIVE_LISTS) {
@@ -380,17 +355,15 @@ export async function buildCommercialCleaning(
       },
     ]);
 
-    // Ad-group-level sitelinks. Ad-group-level assets OVERRIDE campaign-level
-    // ones for this ad group, and Google needs >= 2 sitelinks to serve — so we
-    // add the ad-group-specific sitelink FIRST, then the general ones (the
-    // general assets are deduplicated by Google, so they aren't recreated).
+    // Sitelinks for this ad group: 5 general + the service-specific one (6th).
+    // All at ad-group level so this ad group shows its own set.
     try {
       const agSitelinks = [
-        { text: ag.sitelinkText, url: serviceUrl(ag.slug) },
         ...CAMPAIGN_SITELINKS.map((sl) => ({
           text: sl.text,
           url: serviceUrl(sl.slug),
         })),
+        { text: ag.sitelinkText, url: serviceUrl(ag.slug) },
       ];
       const slAssets = await mutate(
         cid,
@@ -414,28 +387,12 @@ export async function buildCommercialCleaning(
         }))
       );
     } catch (e: any) {
-      warnings.push(`Sitelink de ${ag.name}: ${extractApiError(e).message}`);
+      warnings.push(`Sitelinks de ${ag.name}: ${extractApiError(e).message}`);
     }
 
     steps.push(
-      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, sitelink específico + gerais`
+      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, 6 sitelinks (5 gerais + específico)`
     );
-  }
-
-  // Verify the ad-group sitelinks actually landed in the account
-  try {
-    const rows = await searchStream(
-      cid,
-      `SELECT ad_group.name, ad_group_asset.field_type, asset.sitelink_asset.link_text
-       FROM ad_group_asset
-       WHERE ad_group.campaign = '${campaignResourceName}'
-         AND ad_group_asset.field_type = 'SITELINK'`
-    );
-    steps.push(
-      `Verificação: ${rows.length} sitelinks de ad group encontrados na conta`
-    );
-  } catch (e: any) {
-    warnings.push(`Verificação de sitelinks: ${extractApiError(e).message}`);
   }
 
   return { campaignResourceName, campaignName, steps, warnings };
