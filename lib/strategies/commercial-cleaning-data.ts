@@ -19,7 +19,19 @@ export interface AdGroupTemplate {
   // Broad keywords using the {abbr} placeholder (state abbreviation), added
   // only when no city is selected. E.g. "office cleaning {abbr}" -> "...MA".
   abbrevKeywords: string[];
+  slug: string; // URL segment / anchor for this service (e.g. "office")
+  sitelinkText: string; // ad-group-specific sitelink label
 }
+
+// Campaign-level sitelinks (5 fixed). Each `slug` becomes "/#slug" (one-page
+// site) or "/slug" (client has separate pages per service).
+export const CAMPAIGN_SITELINKS: { text: string; slug: string }[] = [
+  { text: 'About Us', slug: 'about-us' },
+  { text: 'Get a Quote', slug: 'quote' },
+  { text: 'Our Services', slug: 'services' },
+  { text: 'Contact Us', slug: 'contact' },
+  { text: 'Service Area', slug: 'service-area' },
+];
 
 export const BACKUP_HEADLINE = 'Expert Local Cleaning Team';
 
@@ -95,6 +107,8 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       'office cleaning {abbr}',
       'commercial cleaning {abbr}',
     ],
+    slug: 'office',
+    sitelinkText: 'Office Cleaning',
   },
   {
     key: 'medical',
@@ -164,6 +178,8 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       'medical cleaning {abbr}',
       'medical office cleaning {abbr}',
     ],
+    slug: 'medical',
+    sitelinkText: 'Medical Cleaning',
   },
   {
     key: 'post_construction',
@@ -232,6 +248,8 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       'post construction cleaning {abbr}',
       'construction cleanup {abbr}',
     ],
+    slug: 'post-construction',
+    sitelinkText: 'Post-Construction',
   },
   {
     key: 'school',
@@ -299,6 +317,8 @@ export const AD_GROUPS: AdGroupTemplate[] = [
       'school cleaning {abbr}',
       'school janitorial {abbr}',
     ],
+    slug: 'school',
+    sitelinkText: 'School Cleaning',
   },
 ];
 

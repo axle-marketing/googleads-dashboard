@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       city,
       daily_budget,
       ad_group_keys,
+      separate_pages,
     } = body;
 
     // Basic validation
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
         Array.isArray(ad_group_keys) && ad_group_keys.length
           ? ad_group_keys
           : ['office', 'medical', 'post_construction', 'school'],
+      separatePages: !!separate_pages,
     });
 
     return NextResponse.json(result, { status: 201 });

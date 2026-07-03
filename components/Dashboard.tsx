@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
   const [dailyBudget, setDailyBudget] = useState('50');
+  const [separatePages, setSeparatePages] = useState(false);
   const [adGroupKeys, setAdGroupKeys] = useState<string[]>([]);
   const [building, setBuilding] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
@@ -178,6 +179,7 @@ export default function Dashboard() {
           city: city.trim(),
           daily_budget: Number(dailyBudget) || 50,
           ad_group_keys: adGroupKeys,
+          separate_pages: separatePages,
         }),
       });
 
@@ -331,6 +333,22 @@ export default function Dashboard() {
                     />
                   </Field>
                 </div>
+
+                <label className="flex items-start gap-2 text-sm text-gray-800 dark:text-gray-200 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={separatePages}
+                    onChange={(e) => setSeparatePages(e.target.checked)}
+                    className="h-4 w-4 mt-0.5 rounded border-gray-300"
+                  />
+                  <span>
+                    O site do cliente tem páginas separadas por serviço
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      Se marcado, os anúncios e sitelinks usam /office, /medical…
+                      (sem #). Cada anúncio aponta pra página do seu serviço.
+                    </span>
+                  </span>
+                </label>
 
                 <div>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">

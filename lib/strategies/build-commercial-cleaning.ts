@@ -3,6 +3,7 @@ import { getStateAbbr } from '../us-states';
 import {
   AD_GROUPS,
   STRUCTURED_SNIPPET,
+  CAMPAIGN_SITELINKS,
   MAX_HEADLINE,
   MAX_DESCRIPTION,
   buildPrimaryHeadline,
@@ -18,6 +19,7 @@ export interface BuildParams {
   city: string;
   dailyBudget: number; // USD
   adGroupKeys: string[]; // which of the 4 ad groups to build
+  separatePages: boolean; // client has separate pages per service
 }
 
 export interface BuildResult {
@@ -42,6 +44,7 @@ export async function buildCommercialCleaning(
     city,
     dailyBudget,
     adGroupKeys,
+    separatePages,
   } = params;
 
   const cid = customerId.replace(/-/g, '');
@@ -51,7 +54,14 @@ export async function buildCommercialCleaning(
   const trimmedCity = city.trim();
   const locationString = trimmedCity || state;
   const stateAbbr = getStateAbbr(state);
-  const finalUrl = website.startsWith('http') ? website : `https://${website}`;
+  // Normalized base URL without trailing slash.
+  const baseUrl = (
+    website.startsWith('http') ? website : `https://${website}`
+  ).replace(/\/+$/, '');
+  // Sitelink / service URL: "/slug" when the client has separate pages,
+  // otherwise "/#slug" (one-page site with anchors).
+  const serviceUrl = (slug: string) =>
+    separatePages ? `${baseUrl}/${slug}` : `${baseUrl}/#${slug}`;
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const steps: string[] = [];
   const warnings: string[] = [];
@@ -183,6 +193,34 @@ export async function buildCommercialCleaning(
     warnings.push('Structured snippet não pôde ser criado (seguindo sem ele).');
   }
 
+  // 3b) Campaign-level sitelinks (5 fixed) ----------------------------------
+  try {
+    const sitelinkAssets = await mutate(
+      cid,
+      'assets',
+      CAMPAIGN_SITELINKS.map((sl) => ({
+        create: {
+          finalUrls: [serviceUrl(sl.slug)],
+          sitelinkAsset: { linkText: sl.text },
+        },
+      }))
+    );
+    await mutate(
+      cid,
+      'campaignAssets',
+      sitelinkAssets.map((a) => ({
+        create: {
+          campaign: campaignResourceName,
+          asset: a.resourceName,
+          fieldType: 'SITELINK',
+        },
+      }))
+    );
+    steps.push(`Sitelinks de campanha: ${CAMPAIGN_SITELINKS.length}`);
+  } catch (e: any) {
+    warnings.push('Sitelinks de campanha não puderam ser criados.');
+  }
+
   // 4) Campaign-level negative keyword lists --------------------------------
   for (const list of NEGATIVE_LISTS) {
     let keywords = list.keywords;
@@ -297,21 +335,48 @@ export async function buildCommercialCleaning(
       ),
     }));
 
+    // When the client has separate pages per service, point the ad at that
+    // service page; otherwise use the homepage.
+    const adFinalUrl = separatePages ? `${baseUrl}/${ag.slug}` : baseUrl;
+
     await mutate(cid, 'adGroupAds', [
       {
         create: {
           adGroup: adGroupRN,
           status: 'ENABLED',
           ad: {
-            finalUrls: [finalUrl],
+            finalUrls: [adFinalUrl],
             responsiveSearchAd: { headlines, descriptions },
           },
         },
       },
     ]);
 
+    // Ad-group-specific sitelink (points to this service)
+    try {
+      const [slAsset] = await mutate(cid, 'assets', [
+        {
+          create: {
+            finalUrls: [serviceUrl(ag.slug)],
+            sitelinkAsset: { linkText: ag.sitelinkText },
+          },
+        },
+      ]);
+      await mutate(cid, 'adGroupAssets', [
+        {
+          create: {
+            adGroup: adGroupRN,
+            asset: slAsset.resourceName,
+            fieldType: 'SITELINK',
+          },
+        },
+      ]);
+    } catch (e: any) {
+      warnings.push(`Sitelink específico de ${ag.name} não pôde ser criado.`);
+    }
+
     steps.push(
-      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA`
+      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, 1 sitelink`
     );
   }
 
