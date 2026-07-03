@@ -1,4 +1,9 @@
-import { mutate, searchStream, suggestStateGeoTarget } from '../google-ads';
+import {
+  mutate,
+  searchStream,
+  suggestStateGeoTarget,
+  extractApiError,
+} from '../google-ads';
 import { getStateAbbr } from '../us-states';
 import {
   AD_GROUPS,
@@ -218,7 +223,7 @@ export async function buildCommercialCleaning(
     );
     steps.push(`Sitelinks de campanha: ${CAMPAIGN_SITELINKS.length}`);
   } catch (e: any) {
-    warnings.push('Sitelinks de campanha não puderam ser criados.');
+    warnings.push(`Sitelinks de campanha: ${extractApiError(e).message}`);
   }
 
   // 4) Campaign-level negative keyword lists --------------------------------
@@ -317,13 +322,36 @@ export async function buildCommercialCleaning(
       );
     }
 
-    // Responsive search ad
-    const headlines = [
+    // Responsive search ad.
+    // Order: dynamic (company/location), keyword headlines (search-term match),
+    // then benefit/CTA headlines. Deduplicated (case-insensitive), capped at 15.
+    const renderKwHeadline = (tmpl: string) => {
+      const withLoc = tmpl.replaceAll('{location}', locationString);
+      if (withLoc.length <= MAX_HEADLINE) return withLoc;
+      // Too long with the location: drop it and keep just the keyword
+      return tmpl
+        .replaceAll('{location}', '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, MAX_HEADLINE);
+    };
+
+    const rawHeadlines = [
       buildPrimaryHeadline(companyName, locationString, locationString),
+      ...ag.keywordHeadlines.map(renderKwHeadline),
       ...ag.headlines,
-    ]
-      .map((h) => h.slice(0, MAX_HEADLINE))
-      .map((text) => ({ text }));
+    ];
+
+    const seen = new Set<string>();
+    const headlines: { text: string }[] = [];
+    for (const h of rawHeadlines) {
+      const text = h.slice(0, MAX_HEADLINE);
+      const key = text.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      headlines.push({ text });
+      if (headlines.length === 15) break;
+    }
 
     const descriptions = ag.descriptions.map((d) => ({
       text: renderText(
@@ -372,7 +400,9 @@ export async function buildCommercialCleaning(
         },
       ]);
     } catch (e: any) {
-      warnings.push(`Sitelink específico de ${ag.name} não pôde ser criado.`);
+      warnings.push(
+        `Sitelink de ${ag.name}: ${extractApiError(e).message}`
+      );
     }
 
     steps.push(

@@ -12,7 +12,11 @@ export interface KeywordEntry {
 export interface AdGroupTemplate {
   key: string;
   name: string;
-  headlines: string[]; // headline #1 is generated dynamically (company/location)
+  // Keyword-driven headlines that mirror popular search terms (may include
+  // {location}). Placed right after the dynamic headline so they're prioritized
+  // for search-term correspondence.
+  keywordHeadlines: string[];
+  headlines: string[]; // benefit/CTA headlines
   descriptions: string[];
   keywords: KeywordEntry[];
   negatives: KeywordEntry[]; // ad-group-level cross negatives
@@ -39,6 +43,12 @@ export const AD_GROUPS: AdGroupTemplate[] = [
   {
     key: 'office',
     name: 'AG - Office Cleaning',
+    keywordHeadlines: [
+      'Office Cleaning {location}',
+      'Office Cleaning Services',
+      'Commercial Office Cleaning',
+      'Janitorial Services',
+    ],
     headlines: [
       'Top-Rated Office Cleaners',
       'Commercial Office Cleaners',
@@ -113,6 +123,12 @@ export const AD_GROUPS: AdGroupTemplate[] = [
   {
     key: 'medical',
     name: 'AG - Medical & Dental',
+    keywordHeadlines: [
+      'Medical Cleaning {location}',
+      'Medical Office Cleaning',
+      'Medical Cleaning Services',
+      'Healthcare Facility Cleaning',
+    ],
     headlines: [
       'Medical Office Cleaning',
       'Dental Clinic Cleaning',
@@ -184,6 +200,12 @@ export const AD_GROUPS: AdGroupTemplate[] = [
   {
     key: 'post_construction',
     name: 'AG - Post-Construction',
+    keywordHeadlines: [
+      'Post Construction Cleaning',
+      'Construction Cleanup {location}',
+      'After Builders Cleaning',
+      'Commercial Construction Clean',
+    ],
     headlines: [
       'Post-Construction Cleanup',
       'After Builders Cleaning',
@@ -254,6 +276,12 @@ export const AD_GROUPS: AdGroupTemplate[] = [
   {
     key: 'school',
     name: 'AG - School Cleaning',
+    keywordHeadlines: [
+      'School Cleaning {location}',
+      'School Cleaning Services',
+      'School Janitorial Services',
+      'Educational Facility Clean',
+    ],
     headlines: [
       'School Cleaning Services',
       'Educational Facility Clean',
