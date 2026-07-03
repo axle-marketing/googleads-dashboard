@@ -20,12 +20,12 @@ export async function POST(request: Request) {
       separate_pages,
     } = body;
 
-    // Basic validation
+    // Basic validation (city is optional — falls back to the state)
     const missing: string[] = [];
     if (!customer_id) missing.push('customer_id');
     if (!company_name) missing.push('company_name');
     if (!website) missing.push('website');
-    if (!city) missing.push('city');
+    if (!state) missing.push('state');
     if (missing.length) {
       return NextResponse.json(
         { error: `Campos obrigatórios faltando: ${missing.join(', ')}` },
