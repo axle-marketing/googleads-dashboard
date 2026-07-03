@@ -380,33 +380,45 @@ export async function buildCommercialCleaning(
       },
     ]);
 
-    // Ad-group-specific sitelink (points to this service)
+    // Ad-group-level sitelinks. Ad-group-level assets OVERRIDE campaign-level
+    // ones for this ad group, and Google needs >= 2 sitelinks to serve — so we
+    // add the ad-group-specific sitelink FIRST, then the general ones (the
+    // general assets are deduplicated by Google, so they aren't recreated).
     try {
-      const [slAsset] = await mutate(cid, 'assets', [
-        {
+      const agSitelinks = [
+        { text: ag.sitelinkText, url: serviceUrl(ag.slug) },
+        ...CAMPAIGN_SITELINKS.map((sl) => ({
+          text: sl.text,
+          url: serviceUrl(sl.slug),
+        })),
+      ];
+      const slAssets = await mutate(
+        cid,
+        'assets',
+        agSitelinks.map((sl) => ({
           create: {
-            finalUrls: [serviceUrl(ag.slug)],
-            sitelinkAsset: { linkText: ag.sitelinkText },
+            finalUrls: [sl.url],
+            sitelinkAsset: { linkText: sl.text },
           },
-        },
-      ]);
-      await mutate(cid, 'adGroupAssets', [
-        {
+        }))
+      );
+      await mutate(
+        cid,
+        'adGroupAssets',
+        slAssets.map((a) => ({
           create: {
             adGroup: adGroupRN,
-            asset: slAsset.resourceName,
+            asset: a.resourceName,
             fieldType: 'SITELINK',
           },
-        },
-      ]);
-    } catch (e: any) {
-      warnings.push(
-        `Sitelink de ${ag.name}: ${extractApiError(e).message}`
+        }))
       );
+    } catch (e: any) {
+      warnings.push(`Sitelink de ${ag.name}: ${extractApiError(e).message}`);
     }
 
     steps.push(
-      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, 1 sitelink`
+      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, sitelink específico + gerais`
     );
   }
 
