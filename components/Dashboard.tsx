@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [website, setWebsite] = useState('');
   const [state, setState] = useState('');
   const [city, setCity] = useState('');
+  const [cities, setCities] = useState<string[]>([]);
   const [dailyBudget, setDailyBudget] = useState('50');
   const [separatePages, setSeparatePages] = useState(false);
   const [adGroupKeys, setAdGroupKeys] = useState<string[]>([]);
@@ -68,6 +69,19 @@ export default function Dashboard() {
   useEffect(() => {
     if (selectedNiche) fetchStrategies();
   }, [selectedNiche]);
+
+  // Load the selected state's cities into the city autocomplete
+  useEffect(() => {
+    setCity('');
+    if (!state) {
+      setCities([]);
+      return;
+    }
+    fetch(`/api/cities?state=${encodeURIComponent(state)}`)
+      .then((r) => r.json())
+      .then((data) => setCities(Array.isArray(data) ? data : []))
+      .catch(() => setCities([]));
+  }, [state]);
 
   const selectedStrategyObj = useMemo(
     () => strategies.find((s) => s.id === selectedStrategy),
@@ -319,9 +333,20 @@ export default function Dashboard() {
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      placeholder="Boston (vazio = usa o estado)"
+                      list="cities-list"
+                      disabled={!state}
+                      placeholder={
+                        state
+                          ? `Selecione ou digite (${cities.length} cidades)`
+                          : 'Escolha o estado primeiro'
+                      }
                       className={inputClass}
                     />
+                    <datalist id="cities-list">
+                      {cities.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
                   </Field>
                   <Field label="Orçamento diário (US$)">
                     <input
