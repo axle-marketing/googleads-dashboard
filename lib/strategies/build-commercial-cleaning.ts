@@ -356,7 +356,10 @@ export async function buildCommercialCleaning(
     ]);
 
     // Sitelinks for this ad group: 5 general + the service-specific one (6th).
-    // All at ad-group level so this ad group shows its own set.
+    // All at ad-group level so this ad group shows its own set. Counts come
+    // from the actual API responses (ground truth, not hardcoded).
+    let assetCount = 0;
+    let linkCount = 0;
     try {
       const agSitelinks = [
         ...CAMPAIGN_SITELINKS.map((sl) => ({
@@ -375,7 +378,8 @@ export async function buildCommercialCleaning(
           },
         }))
       );
-      await mutate(
+      assetCount = slAssets.length;
+      const linkResults = await mutate(
         cid,
         'adGroupAssets',
         slAssets.map((a) => ({
@@ -386,12 +390,13 @@ export async function buildCommercialCleaning(
           },
         }))
       );
+      linkCount = linkResults.length;
     } catch (e: any) {
       warnings.push(`Sitelinks de ${ag.name}: ${extractApiError(e).message}`);
     }
 
     steps.push(
-      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, 6 sitelinks (5 gerais + específico)`
+      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, sitelinks: ${assetCount} assets / ${linkCount} links`
     );
   }
 
