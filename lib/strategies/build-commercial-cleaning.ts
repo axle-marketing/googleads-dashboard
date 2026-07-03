@@ -422,6 +422,22 @@ export async function buildCommercialCleaning(
     );
   }
 
+  // Verify the ad-group sitelinks actually landed in the account
+  try {
+    const rows = await searchStream(
+      cid,
+      `SELECT ad_group.name, ad_group_asset.field_type, asset.sitelink_asset.link_text
+       FROM ad_group_asset
+       WHERE ad_group.campaign = '${campaignResourceName}'
+         AND ad_group_asset.field_type = 'SITELINK'`
+    );
+    steps.push(
+      `Verificação: ${rows.length} sitelinks de ad group encontrados na conta`
+    );
+  } catch (e: any) {
+    warnings.push(`Verificação de sitelinks: ${extractApiError(e).message}`);
+  }
+
   return { campaignResourceName, campaignName, steps, warnings };
 }
 
