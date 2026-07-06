@@ -198,8 +198,44 @@ export async function buildCommercialCleaning(
     warnings.push('Structured snippet não pôde ser criado (seguindo sem ele).');
   }
 
-  // Sitelinks are added per ad group (6 each: 5 general + 1 service-specific),
-  // not at campaign level — see the ad group loop below.
+  // 3b) Campaign-level sitelinks: the 5 fixed ones + a placeholder 6th
+  // ("sitelink-adgroup") to be edited manually. Ad-group-level sitelinks are
+  // not reliably visible in the UI, so we keep everything at campaign level.
+  try {
+    const sitelinks = [
+      ...CAMPAIGN_SITELINKS.map((sl) => ({
+        text: sl.text,
+        url: serviceUrl(sl.slug),
+      })),
+      { text: 'sitelink-adgroup', url: baseUrl },
+    ];
+    const sitelinkAssets = await mutate(
+      cid,
+      'assets',
+      sitelinks.map((sl) => ({
+        create: {
+          finalUrls: [sl.url],
+          sitelinkAsset: { linkText: sl.text },
+        },
+      }))
+    );
+    await mutate(
+      cid,
+      'campaignAssets',
+      sitelinkAssets.map((a) => ({
+        create: {
+          campaign: campaignResourceName,
+          asset: a.resourceName,
+          fieldType: 'SITELINK',
+        },
+      }))
+    );
+    steps.push(
+      `Sitelinks de campanha: ${sitelinks.length} (5 gerais + placeholder "sitelink-adgroup")`
+    );
+  } catch (e: any) {
+    warnings.push(`Sitelinks de campanha: ${extractApiError(e).message}`);
+  }
 
   // 4) Campaign-level negative keyword lists --------------------------------
   for (const list of NEGATIVE_LISTS) {
@@ -355,48 +391,8 @@ export async function buildCommercialCleaning(
       },
     ]);
 
-    // Sitelinks for this ad group: 5 general + the service-specific one (6th).
-    // All at ad-group level so this ad group shows its own set. Counts come
-    // from the actual API responses (ground truth, not hardcoded).
-    let assetCount = 0;
-    let linkCount = 0;
-    try {
-      const agSitelinks = [
-        ...CAMPAIGN_SITELINKS.map((sl) => ({
-          text: sl.text,
-          url: serviceUrl(sl.slug),
-        })),
-        { text: ag.sitelinkText, url: serviceUrl(ag.slug) },
-      ];
-      const slAssets = await mutate(
-        cid,
-        'assets',
-        agSitelinks.map((sl) => ({
-          create: {
-            finalUrls: [sl.url],
-            sitelinkAsset: { linkText: sl.text },
-          },
-        }))
-      );
-      assetCount = slAssets.length;
-      const linkResults = await mutate(
-        cid,
-        'adGroupAssets',
-        slAssets.map((a) => ({
-          create: {
-            adGroup: adGroupRN,
-            asset: a.resourceName,
-            fieldType: 'SITELINK',
-          },
-        }))
-      );
-      linkCount = linkResults.length;
-    } catch (e: any) {
-      warnings.push(`Sitelinks de ${ag.name}: ${extractApiError(e).message}`);
-    }
-
     steps.push(
-      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA, sitelinks: ${assetCount} assets / ${linkCount} links`
+      `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA`
     );
   }
 
