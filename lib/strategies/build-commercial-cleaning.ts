@@ -9,10 +9,12 @@ import {
   AD_GROUPS,
   STRUCTURED_SNIPPET,
   CAMPAIGN_SITELINKS,
+  CAMPAIGN_CALLOUTS,
   MAX_HEADLINE,
   MAX_DESCRIPTION,
   buildPrimaryHeadline,
   renderText,
+  type AdGroupTemplate,
 } from './commercial-cleaning-data';
 import { NEGATIVE_LISTS } from './commercial-cleaning-negatives';
 
@@ -237,6 +239,31 @@ export async function buildCommercialCleaning(
     warnings.push(`Sitelinks de campanha: ${extractApiError(e).message}`);
   }
 
+  // 3c) Campaign-level callouts (3 general) ---------------------------------
+  try {
+    const calloutAssets = await mutate(
+      cid,
+      'assets',
+      CAMPAIGN_CALLOUTS.map((text) => ({
+        create: { calloutAsset: { calloutText: text } },
+      }))
+    );
+    await mutate(
+      cid,
+      'campaignAssets',
+      calloutAssets.map((a) => ({
+        create: {
+          campaign: campaignResourceName,
+          asset: a.resourceName,
+          fieldType: 'CALLOUT',
+        },
+      }))
+    );
+    steps.push(`Callouts de campanha: ${CAMPAIGN_CALLOUTS.length}`);
+  } catch (e: any) {
+    warnings.push(`Callouts de campanha: ${extractApiError(e).message}`);
+  }
+
   // 4) Campaign-level negative keyword lists --------------------------------
   for (const list of NEGATIVE_LISTS) {
     let keywords = list.keywords;
@@ -272,6 +299,7 @@ export async function buildCommercialCleaning(
 
   // 5) Ad groups, keywords, negatives, RSAs ---------------------------------
   const selected = AD_GROUPS.filter((ag) => adGroupKeys.includes(ag.key));
+  const builtAdGroups: { ag: AdGroupTemplate; resourceName: string }[] = [];
   for (const ag of selected) {
     const [adGroup] = await mutate(cid, 'adGroups', [
       {
@@ -285,6 +313,7 @@ export async function buildCommercialCleaning(
       },
     ]);
     const adGroupRN = adGroup.resourceName;
+    builtAdGroups.push({ ag, resourceName: adGroupRN });
 
     // Positive keywords ({location} placeholder resolved here)
     const keywordOps = ag.keywords.map((kw) => ({
@@ -394,6 +423,69 @@ export async function buildCommercialCleaning(
     steps.push(
       `${ag.name}: ${ag.keywords.length + abbrCount} keywords, ${ag.negatives.length} negativas, 1 RSA`
     );
+  }
+
+  // ── PHASE 2 ──────────────────────────────────────────────────────────────
+  // Now that the whole structure is committed, attach ad-group-specific assets
+  // (service sitelink + specific callout) at ad-group level, then read them
+  // back from the account to confirm they actually persisted.
+  try {
+    for (const { ag, resourceName } of builtAdGroups) {
+      // Ad-group-specific sitelink
+      const [slAsset] = await mutate(cid, 'assets', [
+        {
+          create: {
+            finalUrls: [serviceUrl(ag.slug)],
+            sitelinkAsset: { linkText: ag.sitelinkText },
+          },
+        },
+      ]);
+      await mutate(cid, 'adGroupAssets', [
+        {
+          create: {
+            adGroup: resourceName,
+            asset: slAsset.resourceName,
+            fieldType: 'SITELINK',
+          },
+        },
+      ]);
+
+      // Ad-group-specific callout (only some ad groups have one)
+      if (ag.calloutText) {
+        const [coAsset] = await mutate(cid, 'assets', [
+          { create: { calloutAsset: { calloutText: ag.calloutText } } },
+        ]);
+        await mutate(cid, 'adGroupAssets', [
+          {
+            create: {
+              adGroup: resourceName,
+              asset: coAsset.resourceName,
+              fieldType: 'CALLOUT',
+            },
+          },
+        ]);
+      }
+    }
+
+    // Read back what actually persisted at ad-group level
+    const rns = builtAdGroups.map((b) => `'${b.resourceName}'`).join(',');
+    const rows = await searchStream(
+      cid,
+      `SELECT ad_group.name, ad_group_asset.field_type
+       FROM ad_group_asset
+       WHERE ad_group_asset.ad_group IN (${rns})`
+    );
+    const sitelinkCount = rows.filter(
+      (r: any) => r.adGroupAsset.fieldType === 'SITELINK'
+    ).length;
+    const calloutCount = rows.filter(
+      (r: any) => r.adGroupAsset.fieldType === 'CALLOUT'
+    ).length;
+    steps.push(
+      `Fase 2 — verificação na conta: ${sitelinkCount} sitelinks + ${calloutCount} callouts de ad group persistidos`
+    );
+  } catch (e: any) {
+    warnings.push(`Fase 2 (assets de ad group): ${extractApiError(e).message}`);
   }
 
   return { campaignResourceName, campaignName, steps, warnings };

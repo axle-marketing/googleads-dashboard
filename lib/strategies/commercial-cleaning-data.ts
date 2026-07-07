@@ -25,6 +25,7 @@ export interface AdGroupTemplate {
   abbrevKeywords: string[];
   slug: string; // URL segment / anchor for this service (e.g. "office")
   sitelinkText: string; // ad-group-specific sitelink label
+  calloutText?: string; // optional ad-group-specific callout
 }
 
 // Campaign-level sitelinks (5 fixed). Each `slug` becomes "/#slug" (one-page
@@ -35,6 +36,13 @@ export const CAMPAIGN_SITELINKS: { text: string; slug: string }[] = [
   { text: 'Our Services', slug: 'services' },
   { text: 'Contact Us', slug: 'contact' },
   { text: 'Service Area', slug: 'service-area' },
+];
+
+// Campaign-level callouts (general trust signals, <=25 chars each).
+export const CAMPAIGN_CALLOUTS: string[] = [
+  'Fully Insured & Bonded',
+  'Free Custom Estimates',
+  'Background-Checked Staff',
 ];
 
 export const BACKUP_HEADLINE = 'Expert Local Cleaning Team';
@@ -196,6 +204,7 @@ export const AD_GROUPS: AdGroupTemplate[] = [
     ],
     slug: 'medical',
     sitelinkText: 'Medical Cleaning',
+    calloutText: 'OSHA & HIPAA Compliant',
   },
   {
     key: 'post_construction',
@@ -347,6 +356,7 @@ export const AD_GROUPS: AdGroupTemplate[] = [
     ],
     slug: 'school',
     sitelinkText: 'School Cleaning',
+    calloutText: 'Eco-Friendly Products',
   },
 ];
 
