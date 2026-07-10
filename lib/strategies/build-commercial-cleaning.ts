@@ -17,6 +17,18 @@ import {
 } from './commercial-cleaning-data';
 import { NEGATIVE_LISTS } from './commercial-cleaning-negatives';
 
+export interface SitelinkConfig {
+  text: string; // link title
+  slug: string; // url segment / anchor
+  hasPage: boolean; // true -> "/slug" direct page; false -> "/#slug" anchor
+}
+
+export interface ServicePageConfig {
+  key: string; // ad group key (office, medical, ...)
+  slug: string; // url segment (e.g. "office")
+  hasPage: boolean; // true -> ad points to "/slug"; false -> homepage
+}
+
 export interface BuildParams {
   customerId: string; // client account, digits only
   companyName: string;
@@ -25,7 +37,8 @@ export interface BuildParams {
   city: string;
   dailyBudget: number; // USD
   adGroupKeys: string[]; // which of the 4 ad groups to build
-  separatePages: boolean; // client has separate pages per service
+  sitelinks: SitelinkConfig[]; // configurable sitelinks
+  servicePages: ServicePageConfig[]; // per-service page config (ad final URLs)
 }
 
 export interface BuildResult {
@@ -50,7 +63,8 @@ export async function buildCommercialCleaning(
     city,
     dailyBudget,
     adGroupKeys,
-    separatePages,
+    sitelinks,
+    servicePages,
   } = params;
 
   const cid = customerId.replace(/-/g, '');
@@ -64,15 +78,10 @@ export async function buildCommercialCleaning(
   const baseUrl = (
     website.startsWith('http') ? website : `https://${website}`
   ).replace(/\/+$/, '');
-  // Sitelink URL. Only "about-us" and "contact" become direct pages ("/slug")
-  // when the client has separate pages; every other sitelink always uses the
-  // "/#slug" anchor. A one-page site (separatePages = false) uses "/#slug" for
-  // all of them.
-  const DIRECT_PAGE_SLUGS = ['about-us', 'contact'];
-  const serviceUrl = (slug: string) =>
-    separatePages && DIRECT_PAGE_SLUGS.includes(slug)
-      ? `${baseUrl}/${slug}`
-      : `${baseUrl}/#${slug}`;
+  // URL builder: a configured "individual page" becomes "/slug"; otherwise the
+  // "/#slug" anchor on the homepage.
+  const linkUrl = (slug: string, hasPage: boolean) =>
+    hasPage ? `${baseUrl}/${slug}` : `${baseUrl}/#${slug}`;
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const steps: string[] = [];
   const warnings: string[] = [];
@@ -204,14 +213,17 @@ export async function buildCommercialCleaning(
     warnings.push('Structured snippet não pôde ser criado (seguindo sem ele).');
   }
 
-  // 3b) Campaign-level sitelinks (5 fixed, no placeholder) ------------------
+  // 3b) Campaign-level sitelinks (configurable) -----------------------------
+  const sitelinkList: SitelinkConfig[] = sitelinks?.length
+    ? sitelinks
+    : CAMPAIGN_SITELINKS.map((sl) => ({ ...sl, hasPage: false }));
   try {
     const sitelinkAssets = await mutate(
       cid,
       'assets',
-      CAMPAIGN_SITELINKS.map((sl) => ({
+      sitelinkList.map((sl) => ({
         create: {
-          finalUrls: [serviceUrl(sl.slug)],
+          finalUrls: [linkUrl(sl.slug, sl.hasPage)],
           sitelinkAsset: { linkText: sl.text },
         },
       }))
@@ -227,7 +239,7 @@ export async function buildCommercialCleaning(
         },
       }))
     );
-    steps.push(`Sitelinks de campanha: ${CAMPAIGN_SITELINKS.length}`);
+    steps.push(`Sitelinks de campanha: ${sitelinkList.length}`);
   } catch (e: any) {
     warnings.push(`Sitelinks de campanha: ${extractApiError(e).message}`);
   }
@@ -394,9 +406,10 @@ export async function buildCommercialCleaning(
       ),
     }));
 
-    // When the client has separate pages per service, point the ad at that
-    // service page; otherwise use the homepage.
-    const adFinalUrl = separatePages ? `${baseUrl}/${ag.slug}` : baseUrl;
+    // Point the ad at its service page when configured with an individual page;
+    // otherwise use the homepage.
+    const sp = servicePages?.find((s) => s.key === ag.key);
+    const adFinalUrl = sp && sp.hasPage ? `${baseUrl}/${sp.slug}` : baseUrl;
 
     await mutate(cid, 'adGroupAds', [
       {

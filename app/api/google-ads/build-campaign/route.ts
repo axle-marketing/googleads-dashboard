@@ -17,7 +17,8 @@ export async function POST(request: Request) {
       city,
       daily_budget,
       ad_group_keys,
-      separate_pages,
+      sitelinks,
+      service_pages,
     } = body;
 
     // Basic validation (city is optional — falls back to the state)
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
         Array.isArray(ad_group_keys) && ad_group_keys.length
           ? ad_group_keys
           : ['office', 'medical', 'post_construction', 'school'],
-      separatePages: !!separate_pages,
+      sitelinks: Array.isArray(sitelinks) ? sitelinks : [],
+      servicePages: Array.isArray(service_pages) ? service_pages : [],
     });
 
     return NextResponse.json(result, { status: 201 });

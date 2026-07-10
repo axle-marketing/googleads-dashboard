@@ -31,6 +31,27 @@ interface BuildResult {
   warnings: string[];
 }
 
+interface Sitelink {
+  text: string;
+  slug: string;
+  hasPage: boolean;
+}
+
+interface ServicePage {
+  key: string;
+  label: string;
+  slug: string;
+  hasPage: boolean;
+}
+
+const DEFAULT_SITELINKS: Sitelink[] = [
+  { text: 'About Us', slug: 'about-us', hasPage: true },
+  { text: 'Get a Quote', slug: 'quote', hasPage: false },
+  { text: 'Our Services', slug: 'services', hasPage: false },
+  { text: 'Contact Us', slug: 'contact', hasPage: true },
+  { text: 'Service Area', slug: 'service-area', hasPage: false },
+];
+
 export default function Dashboard() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -53,8 +74,9 @@ export default function Dashboard() {
   const [city, setCity] = useState('');
   const [cities, setCities] = useState<string[]>([]);
   const [dailyBudget, setDailyBudget] = useState('50');
-  const [separatePages, setSeparatePages] = useState(false);
   const [adGroupKeys, setAdGroupKeys] = useState<string[]>([]);
+  const [sitelinks, setSitelinks] = useState<Sitelink[]>([]);
+  const [servicePages, setServicePages] = useState<ServicePage[]>([]);
   const [building, setBuilding] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
 
@@ -92,7 +114,8 @@ export default function Dashboard() {
   const availableAdGroups: { key: string; name: string }[] =
     selectedStrategyObj?.config?.ad_groups || [];
 
-  // When a builder strategy is selected, prefill company name and ad groups
+  // When a builder strategy is selected, prefill company, ad groups, sitelinks
+  // and service pages with sensible defaults.
   useEffect(() => {
     if (isBuilder) {
       const customer = customers.find(
@@ -100,10 +123,36 @@ export default function Dashboard() {
       );
       setCompanyName((prev) => prev || customer?.name || '');
       setAdGroupKeys(availableAdGroups.map((g) => g.key));
+      setSitelinks(DEFAULT_SITELINKS.map((s) => ({ ...s })));
+      setServicePages(
+        availableAdGroups.map((g) => ({
+          key: g.key,
+          label: g.name.replace(/^AG - /, ''),
+          slug: g.key.replace(/_/g, '-'),
+          hasPage: false,
+        }))
+      );
       setResult(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStrategy]);
+
+  function updateSitelink(i: number, patch: Partial<Sitelink>) {
+    setSitelinks((prev) =>
+      prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s))
+    );
+  }
+  function addSitelink() {
+    setSitelinks((prev) => [...prev, { text: '', slug: '', hasPage: false }]);
+  }
+  function removeSitelink(i: number) {
+    setSitelinks((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function updateServicePage(key: string, patch: Partial<ServicePage>) {
+    setServicePages((prev) =>
+      prev.map((s) => (s.key === key ? { ...s, ...patch } : s))
+    );
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -193,7 +242,20 @@ export default function Dashboard() {
           city: city.trim(),
           daily_budget: Number(dailyBudget) || 50,
           ad_group_keys: adGroupKeys,
-          separate_pages: separatePages,
+          sitelinks: sitelinks
+            .filter((s) => s.text.trim() && s.slug.trim())
+            .map((s) => ({
+              text: s.text.trim(),
+              slug: s.slug.trim(),
+              hasPage: s.hasPage,
+            })),
+          service_pages: servicePages
+            .filter((s) => adGroupKeys.includes(s.key))
+            .map((s) => ({
+              key: s.key,
+              slug: s.slug.trim(),
+              hasPage: s.hasPage,
+            })),
         }),
       });
 
@@ -359,22 +421,6 @@ export default function Dashboard() {
                   </Field>
                 </div>
 
-                <label className="flex items-start gap-2 text-sm text-gray-800 dark:text-gray-200 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={separatePages}
-                    onChange={(e) => setSeparatePages(e.target.checked)}
-                    className="h-4 w-4 mt-0.5 rounded border-gray-300"
-                  />
-                  <span>
-                    O site do cliente tem páginas separadas por serviço
-                    <span className="block text-xs text-gray-500 dark:text-gray-400">
-                      Se marcado, os anúncios e sitelinks usam /office, /medical…
-                      (sem #). Cada anúncio aponta pra página do seu serviço.
-                    </span>
-                  </span>
-                </label>
-
                 <div>
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
                     Grupos de anúncios a criar
@@ -393,6 +439,116 @@ export default function Dashboard() {
                         />
                         {g.name}
                       </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Service pages (ad final URLs) */}
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                    Páginas de serviço
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Marque quando o cliente tem página própria pro serviço. O
+                    anúncio aponta pra <code>/slug</code>; senão, pra home.
+                  </p>
+                  <div className="space-y-2">
+                    {servicePages
+                      .filter((s) => adGroupKeys.includes(s.key))
+                      .map((s) => (
+                        <div
+                          key={s.key}
+                          className="flex items-center gap-2 flex-wrap"
+                        >
+                          <span className="text-sm text-gray-700 dark:text-gray-300 w-32 shrink-0">
+                            {s.label}
+                          </span>
+                          <span className="text-sm text-gray-400">/</span>
+                          <input
+                            type="text"
+                            value={s.slug}
+                            onChange={(e) =>
+                              updateServicePage(s.key, { slug: e.target.value })
+                            }
+                            className={`${inputClass} flex-1 min-w-[120px] py-1.5`}
+                          />
+                          <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={s.hasPage}
+                              onChange={(e) =>
+                                updateServicePage(s.key, {
+                                  hasPage: e.target.checked,
+                                })
+                              }
+                              className="h-4 w-4 rounded border-gray-300"
+                            />
+                            página individual
+                          </label>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Sitelinks */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      Sitelinks
+                    </p>
+                    <button
+                      type="button"
+                      onClick={addSitelink}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      + Adicionar
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Título + slug. Marque "página individual" pra usar{' '}
+                    <code>/slug</code>; senão vira <code>/#slug</code>.
+                  </p>
+                  <div className="space-y-2">
+                    {sitelinks.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="text"
+                          value={s.text}
+                          placeholder="Título"
+                          onChange={(e) =>
+                            updateSitelink(i, { text: e.target.value })
+                          }
+                          className={`${inputClass} flex-1 min-w-[110px] py-1.5`}
+                        />
+                        <input
+                          type="text"
+                          value={s.slug}
+                          placeholder="slug"
+                          onChange={(e) =>
+                            updateSitelink(i, { slug: e.target.value })
+                          }
+                          className={`${inputClass} flex-1 min-w-[100px] py-1.5`}
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={s.hasPage}
+                            onChange={(e) =>
+                              updateSitelink(i, { hasPage: e.target.checked })
+                            }
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          página individual
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeSitelink(i)}
+                          title="Remover"
+                          className="text-gray-400 hover:text-red-500 text-lg leading-none shrink-0"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
