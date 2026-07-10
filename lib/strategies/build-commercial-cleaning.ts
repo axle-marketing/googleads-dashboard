@@ -64,10 +64,15 @@ export async function buildCommercialCleaning(
   const baseUrl = (
     website.startsWith('http') ? website : `https://${website}`
   ).replace(/\/+$/, '');
-  // Sitelink / service URL: "/slug" when the client has separate pages,
-  // otherwise "/#slug" (one-page site with anchors).
+  // Sitelink URL. Only "about-us" and "contact" become direct pages ("/slug")
+  // when the client has separate pages; every other sitelink always uses the
+  // "/#slug" anchor. A one-page site (separatePages = false) uses "/#slug" for
+  // all of them.
+  const DIRECT_PAGE_SLUGS = ['about-us', 'contact'];
   const serviceUrl = (slug: string) =>
-    separatePages ? `${baseUrl}/${slug}` : `${baseUrl}/#${slug}`;
+    separatePages && DIRECT_PAGE_SLUGS.includes(slug)
+      ? `${baseUrl}/${slug}`
+      : `${baseUrl}/#${slug}`;
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const steps: string[] = [];
   const warnings: string[] = [];
@@ -104,7 +109,7 @@ export async function buildCommercialCleaning(
           'DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING',
         networkSettings: {
           targetGoogleSearch: true,
-          targetSearchNetwork: true,
+          targetSearchNetwork: false, // Google search partners OFF
           targetContentNetwork: false,
           targetPartnerSearchNetwork: false,
         },
