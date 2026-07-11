@@ -37,11 +37,13 @@ interface Sitelink {
   hasPage: boolean;
 }
 
-interface ServicePage {
+interface Service {
   key: string;
   label: string;
   slug: string;
   hasPage: boolean;
+  create: boolean;
+  custom: boolean;
 }
 
 const DEFAULT_SITELINKS: Sitelink[] = [
@@ -74,9 +76,8 @@ export default function Dashboard() {
   const [city, setCity] = useState('');
   const [cities, setCities] = useState<string[]>([]);
   const [dailyBudget, setDailyBudget] = useState('50');
-  const [adGroupKeys, setAdGroupKeys] = useState<string[]>([]);
   const [sitelinks, setSitelinks] = useState<Sitelink[]>([]);
-  const [servicePages, setServicePages] = useState<ServicePage[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [building, setBuilding] = useState(false);
   const [result, setResult] = useState<BuildResult | null>(null);
 
@@ -122,14 +123,15 @@ export default function Dashboard() {
         (c) => c.customer_id === selectedCustomer
       );
       setCompanyName((prev) => prev || customer?.name || '');
-      setAdGroupKeys(availableAdGroups.map((g) => g.key));
       setSitelinks(DEFAULT_SITELINKS.map((s) => ({ ...s })));
-      setServicePages(
+      setServices(
         availableAdGroups.map((g) => ({
           key: g.key,
           label: g.name.replace(/^AG - /, ''),
           slug: g.key.replace(/_/g, '-'),
           hasPage: false,
+          create: true,
+          custom: false,
         }))
       );
       setResult(null);
@@ -148,10 +150,26 @@ export default function Dashboard() {
   function removeSitelink(i: number) {
     setSitelinks((prev) => prev.filter((_, idx) => idx !== i));
   }
-  function updateServicePage(key: string, patch: Partial<ServicePage>) {
-    setServicePages((prev) =>
-      prev.map((s) => (s.key === key ? { ...s, ...patch } : s))
+  function updateService(i: number, patch: Partial<Service>) {
+    setServices((prev) =>
+      prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s))
     );
+  }
+  function addService() {
+    setServices((prev) => [
+      ...prev,
+      {
+        key: `custom-${Date.now()}`,
+        label: '',
+        slug: '',
+        hasPage: false,
+        create: true,
+        custom: true,
+      },
+    ]);
+  }
+  function removeService(i: number) {
+    setServices((prev) => prev.filter((_, idx) => idx !== i));
   }
 
   async function handleLogout() {
@@ -204,12 +222,6 @@ export default function Dashboard() {
     }
   }
 
-  function toggleAdGroup(key: string) {
-    setAdGroupKeys((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
-  }
-
   async function handleBuild() {
     if (!selectedCustomer || !selectedStrategyObj) return;
     if (!companyName.trim() || !website.trim()) {
@@ -220,8 +232,11 @@ export default function Dashboard() {
       setError('Selecione o estado.');
       return;
     }
-    if (adGroupKeys.length === 0) {
-      setError('Selecione pelo menos um grupo de anúncios.');
+    const chosenServices = services.filter(
+      (s) => s.create && s.label.trim() && s.slug.trim()
+    );
+    if (chosenServices.length === 0) {
+      setError('Marque pelo menos um serviço (com nome e slug).');
       return;
     }
 
@@ -241,7 +256,6 @@ export default function Dashboard() {
           state,
           city: city.trim(),
           daily_budget: Number(dailyBudget) || 50,
-          ad_group_keys: adGroupKeys,
           sitelinks: sitelinks
             .filter((s) => s.text.trim() && s.slug.trim())
             .map((s) => ({
@@ -249,13 +263,13 @@ export default function Dashboard() {
               slug: s.slug.trim(),
               hasPage: s.hasPage,
             })),
-          service_pages: servicePages
-            .filter((s) => adGroupKeys.includes(s.key))
-            .map((s) => ({
-              key: s.key,
-              slug: s.slug.trim(),
-              hasPage: s.hasPage,
-            })),
+          services: chosenServices.map((s) => ({
+            key: s.key,
+            label: s.label.trim(),
+            slug: s.slug.trim(),
+            hasPage: s.hasPage,
+            custom: s.custom,
+          })),
         }),
       });
 
@@ -421,72 +435,88 @@ export default function Dashboard() {
                   </Field>
                 </div>
 
+                {/* Services = ad groups + their pages (unified) */}
                 <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                    Grupos de anúncios a criar
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                      Serviços (grupos de anúncio)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={addService}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      + Adicionar
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    Cada serviço vira um grupo de anúncios. Marque "página
+                    individual" pra o anúncio apontar pra <code>/slug</code>;
+                    senão vai pra home.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {availableAdGroups.map((g) => (
-                      <label
-                        key={g.key}
-                        className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-200 p-2 rounded-lg border border-gray-200 dark:border-gray-700"
+                  <div className="space-y-2">
+                    {services.map((s, i) => (
+                      <div
+                        key={s.key}
+                        className="flex items-center gap-2 flex-wrap"
                       >
                         <input
                           type="checkbox"
-                          checked={adGroupKeys.includes(g.key)}
-                          onChange={() => toggleAdGroup(g.key)}
-                          className="h-4 w-4 rounded border-gray-300"
+                          checked={s.create}
+                          title="Criar este grupo"
+                          onChange={(e) =>
+                            updateService(i, { create: e.target.checked })
+                          }
+                          className="h-4 w-4 rounded border-gray-300 shrink-0"
                         />
-                        {g.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Service pages (ad final URLs) */}
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
-                    Páginas de serviço
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    Marque quando o cliente tem página própria pro serviço. O
-                    anúncio aponta pra <code>/slug</code>; senão, pra home.
-                  </p>
-                  <div className="space-y-2">
-                    {servicePages
-                      .filter((s) => adGroupKeys.includes(s.key))
-                      .map((s) => (
-                        <div
-                          key={s.key}
-                          className="flex items-center gap-2 flex-wrap"
-                        >
-                          <span className="text-sm text-gray-700 dark:text-gray-300 w-32 shrink-0">
-                            {s.label}
-                          </span>
-                          <span className="text-sm text-gray-400">/</span>
+                        {s.custom ? (
                           <input
                             type="text"
-                            value={s.slug}
+                            value={s.label}
+                            placeholder="Nome do serviço"
                             onChange={(e) =>
-                              updateServicePage(s.key, { slug: e.target.value })
+                              updateService(i, { label: e.target.value })
                             }
-                            className={`${inputClass} flex-1 min-w-[120px] py-1.5`}
+                            className={`${inputClass} flex-1 min-w-[130px] py-1.5`}
                           />
-                          <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 shrink-0">
-                            <input
-                              type="checkbox"
-                              checked={s.hasPage}
-                              onChange={(e) =>
-                                updateServicePage(s.key, {
-                                  hasPage: e.target.checked,
-                                })
-                              }
-                              className="h-4 w-4 rounded border-gray-300"
-                            />
-                            página individual
-                          </label>
-                        </div>
-                      ))}
+                        ) : (
+                          <span className="text-sm text-gray-700 dark:text-gray-300 w-36 shrink-0">
+                            {s.label}
+                          </span>
+                        )}
+                        <span className="text-sm text-gray-400">/</span>
+                        <input
+                          type="text"
+                          value={s.slug}
+                          placeholder="slug"
+                          onChange={(e) =>
+                            updateService(i, { slug: e.target.value })
+                          }
+                          className={`${inputClass} flex-1 min-w-[100px] py-1.5`}
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={s.hasPage}
+                            onChange={(e) =>
+                              updateService(i, { hasPage: e.target.checked })
+                            }
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          página individual
+                        </label>
+                        {s.custom && (
+                          <button
+                            type="button"
+                            onClick={() => removeService(i)}
+                            title="Remover"
+                            className="text-gray-400 hover:text-red-500 text-lg leading-none shrink-0"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 

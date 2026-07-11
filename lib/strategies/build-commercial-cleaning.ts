@@ -14,6 +14,7 @@ import {
   MAX_DESCRIPTION,
   buildPrimaryHeadline,
   renderText,
+  buildGenericAdGroup,
 } from './commercial-cleaning-data';
 import { NEGATIVE_LISTS } from './commercial-cleaning-negatives';
 
@@ -23,10 +24,12 @@ export interface SitelinkConfig {
   hasPage: boolean; // true -> "/slug" direct page; false -> "/#slug" anchor
 }
 
-export interface ServicePageConfig {
-  key: string; // ad group key (office, medical, ...)
+export interface ServiceConfig {
+  key: string; // ad group key (office, medical, ... or custom-<slug>)
+  label: string; // service name (used to generate custom ad groups)
   slug: string; // url segment (e.g. "office")
   hasPage: boolean; // true -> ad points to "/slug"; false -> homepage
+  custom: boolean; // true -> generate a generic ad group from the label
 }
 
 export interface BuildParams {
@@ -36,9 +39,8 @@ export interface BuildParams {
   state: string; // US state name for geo-targeting
   city: string;
   dailyBudget: number; // USD
-  adGroupKeys: string[]; // which of the 4 ad groups to build
   sitelinks: SitelinkConfig[]; // configurable sitelinks
-  servicePages: ServicePageConfig[]; // per-service page config (ad final URLs)
+  services: ServiceConfig[]; // each service = one ad group + its page
 }
 
 export interface BuildResult {
@@ -62,9 +64,8 @@ export async function buildCommercialCleaning(
     state,
     city,
     dailyBudget,
-    adGroupKeys,
     sitelinks,
-    servicePages,
+    services,
   } = params;
 
   const cid = customerId.replace(/-/g, '');
@@ -86,7 +87,7 @@ export async function buildCommercialCleaning(
   const steps: string[] = [];
   const warnings: string[] = [];
 
-  const buildingSchool = adGroupKeys.includes('school');
+  const buildingSchool = services.some((s) => s.key === 'school');
 
   // 1) Campaign budget ------------------------------------------------------
   const [budget] = await mutate(cid, 'campaignBudgets', [
@@ -303,8 +304,14 @@ export async function buildCommercialCleaning(
   }
 
   // 5) Ad groups, keywords, negatives, RSAs ---------------------------------
-  const selected = AD_GROUPS.filter((ag) => adGroupKeys.includes(ag.key));
-  for (const ag of selected) {
+  // Each service maps to one ad group: predefined ones use their rich template;
+  // custom ones are generated from the label.
+  for (const svc of services) {
+    const ag = svc.custom
+      ? buildGenericAdGroup(svc.label, svc.slug)
+      : AD_GROUPS.find((a) => a.key === svc.key);
+    if (!ag) continue;
+
     const [adGroup] = await mutate(cid, 'adGroups', [
       {
         create: {
@@ -408,8 +415,7 @@ export async function buildCommercialCleaning(
 
     // Point the ad at its service page when configured with an individual page;
     // otherwise use the homepage.
-    const sp = servicePages?.find((s) => s.key === ag.key);
-    const adFinalUrl = sp && sp.hasPage ? `${baseUrl}/${sp.slug}` : baseUrl;
+    const adFinalUrl = svc.hasPage ? `${baseUrl}/${svc.slug}` : baseUrl;
 
     await mutate(cid, 'adGroupAds', [
       {

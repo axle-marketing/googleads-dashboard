@@ -360,6 +360,64 @@ export const AD_GROUPS: AdGroupTemplate[] = [
   },
 ];
 
+function titleCase(s: string): string {
+  return s
+    .trim()
+    .replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+}
+
+/**
+ * Builds a full, servable ad group template from a free-text service label
+ * (e.g. "Gym Cleaning"). Used for user-added services that have no hand-written
+ * template. Headlines/keywords derive from the label + {location}/{abbr}.
+ */
+export function buildGenericAdGroup(
+  label: string,
+  slug: string
+): AdGroupTemplate {
+  const l = titleCase(label);
+  const lower = label.trim().toLowerCase();
+  return {
+    key: `custom-${slug}`,
+    name: `AG - ${l}`,
+    keywordHeadlines: [`${l} {location}`, `${l} Services`, `Commercial ${l}`],
+    headlines: [
+      `Top-Rated ${l}`,
+      `Professional ${l}`,
+      `Trusted ${l} Team`,
+      `Local ${l} Pros`,
+      `Reliable ${l}`,
+      `Insured & Bonded`,
+      `Get Your Free Quote`,
+      `Custom ${l} Plans`,
+      `Expert ${l} Service`,
+      `Free ${l} Estimate`,
+    ],
+    descriptions: [
+      `Professional ${lower} in {location}. Fully insured, bonded, and background-checked.`,
+      `Reliable commercial ${lower} for your business. Request a free quote today!`,
+      `Custom ${lower} plans tailored to your needs. Trusted local team.`,
+      `Top-rated ${lower} in {location}. Flexible scheduling for your business.`,
+    ],
+    keywords: [
+      { text: `${lower} services`, matchType: 'EXACT' },
+      { text: `${lower} services near me`, matchType: 'EXACT' },
+      { text: `${lower} services {location}`, matchType: 'EXACT' },
+      { text: `commercial ${lower}`, matchType: 'EXACT' },
+      { text: `${lower} services`, matchType: 'PHRASE' },
+      { text: `${lower} company`, matchType: 'PHRASE' },
+      { text: `commercial ${lower}`, matchType: 'PHRASE' },
+      { text: `${lower} near me`, matchType: 'PHRASE' },
+      { text: `${lower}`, matchType: 'BROAD' },
+      { text: `${lower} {location}`, matchType: 'BROAD' },
+    ],
+    negatives: [],
+    abbrevKeywords: [`${lower} {abbr}`, `commercial ${lower} {abbr}`],
+    slug,
+    sitelinkText: l.slice(0, 25),
+  };
+}
+
 // Campaign-level shared negative keyword lists (one per uploaded spreadsheet).
 // All BROAD. See `commercial-cleaning-negatives.ts` for the actual word lists.
 export interface NegativeList {

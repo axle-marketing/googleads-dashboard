@@ -16,9 +16,8 @@ export async function POST(request: Request) {
       state,
       city,
       daily_budget,
-      ad_group_keys,
       sitelinks,
-      service_pages,
+      services,
     } = body;
 
     // Basic validation (city is optional — falls back to the state)
@@ -30,6 +29,13 @@ export async function POST(request: Request) {
     if (missing.length) {
       return NextResponse.json(
         { error: `Campos obrigatórios faltando: ${missing.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
+    if (!Array.isArray(services) || services.length === 0) {
+      return NextResponse.json(
+        { error: 'Selecione pelo menos um serviço / grupo de anúncios.' },
         { status: 400 }
       );
     }
@@ -48,12 +54,8 @@ export async function POST(request: Request) {
       state: state || '',
       city,
       dailyBudget: Number(daily_budget) || 50,
-      adGroupKeys:
-        Array.isArray(ad_group_keys) && ad_group_keys.length
-          ? ad_group_keys
-          : ['office', 'medical', 'post_construction', 'school'],
       sitelinks: Array.isArray(sitelinks) ? sitelinks : [],
-      servicePages: Array.isArray(service_pages) ? service_pages : [],
+      services: Array.isArray(services) ? services : [],
     });
 
     return NextResponse.json(result, { status: 201 });
